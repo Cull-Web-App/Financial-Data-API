@@ -17,9 +17,16 @@ provider:
   name: aws
   runtime: nodejs10.x
   stage: dev
+  environment:
+    API_KEY: ${ssm:API_KEY}
+
+package:
+  exclude:
+    - src/
 
 environment:
   SLS_DEBUG: true
+
 
 functions:
   get_tickers:

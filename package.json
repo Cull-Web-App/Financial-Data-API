@@ -14,7 +14,8 @@
     "@types/node": "^12.7.5",
     "@types/request-promise": "^4.1.44",
     "aws-sdk": "^2.532.0",
-    "serverless-plugin-typescript": "^1.1.9"
+    "request": "^2.88.0",
+    "request-promise": "^4.2.4"
   },
   "devDependencies": {
     "typescript": "^3.6.3"
