@@ -1,0 +1,22 @@
+{
+  "name": "sls-financial-data-api",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "deploy": "npm run build && sls deploy"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@types/aws-lambda": "^8.10.31",
+    "@types/node": "^12.7.5",
+    "@types/request-promise": "^4.1.44",
+    "aws-sdk": "^2.532.0",
+    "serverless-plugin-typescript": "^1.1.9"
+  },
+  "devDependencies": {
+    "typescript": "^3.6.3"
+  }
+}
