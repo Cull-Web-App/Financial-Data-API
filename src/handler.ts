@@ -1,13 +1,15 @@
 import { Handler, APIGatewayProxyEvent, Context, APIGatewayProxyResult } from 'aws-lambda';
 import * as req from 'request-promise';
 import { reject } from 'bluebird';
+import { candleStickData } from './models';
 
 let apiKey = process.env.API_KEY;
 
-export const getTickers: Handler = async (event: APIGatewayProxyEvent, context: Context): Promise<APIGatewayProxyResult> => {
+export const candlestickData: Handler = async (event: APIGatewayProxyEvent, context: Context): Promise<APIGatewayProxyResult> => {
     if (event.queryStringParameters) {        
         const ticker: string = event.queryStringParameters.ticker;
         var interval: string;
+
         if (event.queryStringParameters.interval) {
             interval = event.queryStringParameters.interval;
         }
@@ -22,11 +24,30 @@ export const getTickers: Handler = async (event: APIGatewayProxyEvent, context: 
             json: true
         };
 
-        let resp = await req.get(options);
-        return {
-            statusCode: 200,
-            body: JSON.stringify(resp)
-        };
+        try{
+            let resp = await req.get(options);
+            var returnData;
+            console.log(interval);
+            if (interval == "1mm" || interval == "5dm"){
+                returnData = resp.map(data => <candleStickData>({date: data.date,time:data.minute, openPrice: data.open, closePrice: data.close}));
+            }
+            else{
+                returnData = resp.map(data => <candleStickData>({date: data.date, openPrice: data.open, closePrice: data.close}));
+            }
+                    
+
+            return {
+                statusCode: 200,
+                body: JSON.stringify(returnData)
+            };
+        }
+        catch(e){
+            return {
+                statusCode: 400,
+                body:e
+            };
+        }
+        
     }
     return {
         statusCode: 400,

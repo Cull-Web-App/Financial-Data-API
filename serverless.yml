@@ -23,6 +23,7 @@ provider:
 package:
   exclude:
     - src/
+    - node_modules
 
 environment:
   SLS_DEBUG: true
@@ -30,10 +31,10 @@ environment:
 
 functions:
   get_tickers:
-    handler: dist/handler.getTickers
+    handler: dist/handler.candlestickData
     events:
       - http:
-          path: /tickers
+          path: /candlestick
           method: get
           cors: true
 
