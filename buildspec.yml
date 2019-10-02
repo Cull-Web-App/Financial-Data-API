@@ -1,0 +1,21 @@
+version: 0.1
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 10
+    commands:
+      - echo Installing dependencies
+      - npm install
+      - echo Dependencies installed successfully
+  build:
+    commands:
+      - echo Building production application
+      - npm run deploy
+  post_build:
+    commands:
+      - echo Build completed successfully
+
+cache:
+  paths:
+    - 'node_modules/**/*'

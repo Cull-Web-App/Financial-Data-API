@@ -37,4 +37,212 @@ functions:
           path: /candlestick
           method: get
           cors: true
+          integration: lambda
+          authorizer:
+            name: Cull-Users
+            arn: arn:aws:cognito-idp:us-east-2:659125015803:userpool/us-east-2_RX3ccbAc4H
 
+Resources:
+  # Build pipeline resources
+  CodePipelineArtifactStoreBucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      VersioningConfiguration:
+        Status: Enabled
+
+  CodeBuildProject:
+    Type: 'AWS::CodeBuild::Project'
+    Properties:
+      ServiceRole: !GetAtt CodeBuildRole.Arn
+      Artifacts:
+        # The downloaded source code for the build will come from CodePipeline
+        Type: CODEPIPELINE
+      Environment:
+        # Linux container with node installed
+        ComputeType: BUILD_GENERAL1_SMALL
+        Type: LINUX_CONTAINER
+        Image: "aws/codebuild/standard:2.0"
+      # This source record indicates that the code is coming from CodePipeline -- No buildspec specified so buildspec.yml will be used
+      Source:
+        Type: CODEPIPELINE
+
+  AppPipeline:
+    Type: 'AWS::CodePipeline::Pipeline'
+    Properties:
+      Name: Cull-Web-UI-Pipeline
+      RoleArn: !GetAtt CodePipelineServiceRole.Arn
+      ArtifactStore:
+        Location: !Ref CodePipelineArtifactStoreBucket
+        Type: S3
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: SourceAction
+              ActionTypeId:
+                Category: Source
+                Owner: ThirdParty
+                Version: 1
+                Provider: GitHub
+              OutputArtifacts:
+                - Name: SourceOutput
+              Configuration:
+                Owner: !Ref GitHubOwner
+                Repo: !Ref RepositoryName
+                Branch: !Ref BranchName
+                OAuthToken: !Ref GitHubOAuthToken
+                PollForSourceChanges: false
+        - Name: BuildAndTest
+          Actions:
+            - Name: BuildAndTest
+              InputArtifacts:
+                - Name: SourceOutput
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Version: 1
+                Provider: CodeBuild
+              OutputArtifacts:
+                - Name: BuildOutput
+              Configuration:
+                ProjectName: !Ref CodeBuildProject
+        - Name: Deploy
+          Actions:
+            - Name: Deploy
+              InputArtifacts:
+                - Name: BuildOutput
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Version: 1
+                Provider: S3
+              Configuration:
+                
+
+  # This webhook allows the github changes to be pushed to CodePipeline rather than polled
+  AppPipelineWebhook:
+    Type: 'AWS::CodePipeline::Webhook'
+    Properties:
+      Authentication: GITHUB_HMAC
+      AuthenticationConfiguration:
+        SecretToken: !Ref GitHubSecret
+      Filters:
+        - JsonPath: $.ref
+          MatchEquals: 'refs/heads/{Branch}'
+      TargetPipeline: !Ref AppPipeline
+      TargetAction: SourceAction
+      Name: Cull-Financial-Data
+      TargetPipelineVersion: !GetAtt AppPipeline.Version
+      RegisterWithThirdParty: true
+
+  # IAM Roles for this stack
+  CodePipelineServiceRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - codepipeline.amazonaws.com
+            Action: 'sts:AssumeRole'
+      Path: /
+      Policies:
+        - PolicyName: AWS-CodePipeline-Service
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'codedeploy:CreateDeployment'
+                  - 'codedeploy:GetApplicationRevision'
+                  - 'codedeploy:GetDeployment'
+                  - 'codedeploy:GetDeploymentConfig'
+                  - 'codedeploy:RegisterApplicationRevision'
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - 'codebuild:BatchGetBuilds'
+                  - 'codebuild:StartBuild'
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - "s3:*"
+                Resource:
+                  - !GetAtt CodePipelineArtifactStoreBucket.Arn
+                  - !Join ['', [!GetAtt CodePipelineArtifactStoreBucket.Arn, "/*"]]
+  
+  # IAM role that allows CodeBuild to interact with S3, CloudWatch, and CloudFront
+  CodeBuildRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - 
+            Effect: Allow
+            Principal:
+              Service:
+                - "codebuild.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Path: /service-role/
+      Policies:
+        - PolicyName: root
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement: 
+              - 
+                Effect: Allow
+                Action:
+                  - "s3:GetObject"
+                  - "s3:GetObjectVersion"
+                  - "s3:GetBucketVersioning"
+                  - "s3:PutObject"
+                Resource: 
+                  - !GetAtt CodePipelineArtifactStoreBucket.Arn
+                  - !Join ['', [!GetAtt CodePipelineArtifactStoreBucket.Arn, "/*"]]
+              -
+                Effect: Allow
+                Action:
+                  - "logs:CreateLogGroup"
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+                  - "cloudfront:CreateInvalidation"
+                  - "cloudformation:*"
+                Resource:
+                  - "*"
+
+# List of parameters referenced in the template
+Parameters:
+
+  BranchName:
+    Description: Build branch
+    Type: String
+    Default: master
+
+  RepositoryName:
+    Description: GitHub repository name
+    Type: String
+    Default: Cull-Web-UI
+
+  GitHubOwner:
+    Type: String
+    Default: Cull-Web-App
+
+  # The GitHub Secret and OAuth are SecretsManager secrets that are dynamically retrieved. They aren't in the template for obvious reasons
+  GitHubSecret:
+    Type: String
+    NoEcho: true
+    Default: '{{resolve:secretsmanager:GitHub:SecretString:Secret}}'
+  
+  # This parameter needs to be passed in everytime the stack is ran -- will not be remembered
+  GitHubOAuthToken:
+    Type: String
+    NoEcho: true
+    Default: '{{resolve:secretsmanager:GitHub:SecretString:OAuthToken}}'
+
+  ApplicationName:
+    Description: CodeDeploy application name
+    Type: String
+    Default: Cull-Web-UI
+
+  
