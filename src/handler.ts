@@ -25,6 +25,10 @@ export const candlestickData: Handler = async (event: APIGatewayProxyEvent, cont
             const returnData = resp.data.map(data => <candleStickData>({date: data.date,time:data.minute, openPrice: data.open, closePrice: data.close}));
             return {
                 statusCode: 200,
+                headers: {
+                    "Access-Control-Allow-Headers": '*',
+                    "Access-Control-Allow-Origin": '*'
+                },
                 body: JSON.stringify(returnData)
             };
         }
@@ -32,6 +36,10 @@ export const candlestickData: Handler = async (event: APIGatewayProxyEvent, cont
         {
             return {
                 statusCode: 400,
+                headers: {
+                    "Access-Control-Allow-Headers": '*',
+                    "Access-Control-Allow-Origin": '*'
+                },
                 body: e
             };
         }
@@ -39,6 +47,10 @@ export const candlestickData: Handler = async (event: APIGatewayProxyEvent, cont
     }
     return {
         statusCode: 400,
+        headers: {
+            "Access-Control-Allow-Headers": '*',
+            "Access-Control-Allow-Origin": '*'
+        },
         body: JSON.stringify({
             message: 'Ticker was not provided or was invalid'
         })
