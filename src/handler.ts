@@ -1,6 +1,7 @@
 import { Handler, APIGatewayProxyEvent, Context, APIGatewayProxyResult } from 'aws-lambda';
-import axios, {AxiosResponse, AxiosRequestConfig, AxiosPromise} from 'axios';
-import { candleStickData } from './models';
+import moment from 'moment';
+import { rawData } from './models';
+import { setStartVals, setInterval, generateNext } from './utils';
 
 const apiKey = process.env.API_KEY;
 
@@ -8,52 +9,46 @@ export const candlestickData: Handler = async (event: APIGatewayProxyEvent, cont
 {
     if (event.queryStringParameters) 
     {        
-        const {ticker, interval} = event.queryStringParameters;
-        const config: AxiosRequestConfig = {
-            baseURL: 'https://cloud.iexapis.com/v1/stock/',
-            url: ticker + '/chart/' + (interval || '1m'),
-            method: 'get',
-            params: {
-                token: apiKey
+        const {symbol, startDate, stopDate, interval} = event.queryStringParameters;
+        const sDate = moment(startDate).set({hour:9,minute:0,second:0});
+        const eDate = moment(stopDate).set({hour:17,minute:0,second:0});
+        const diffDays: number = eDate.diff(sDate,'days') + 1;        
+
+        const perDay: number = setInterval(interval);
+
+        var returnArr: rawData[] = [setStartVals(sDate)];
+
+        for (var i = 1; i < diffDays * (28800/perDay); i++)
+        {
+            if (moment(returnArr[returnArr.length-1].dateTime).hour() == 17)
+            {
+                returnArr.push(generateNext(returnArr[returnArr.length-1], 57600));
+            }
+            else
+            {
+                returnArr.push(generateNext(returnArr[returnArr.length-1],perDay));
+            }
+        }
+
+        return {
+            statusCode: 200,
+            headers: {
+                "Access-Control-Allow-Headers": '*',
+                "Access-Control-Allow-Origin": '*'
             },
-            responseType: 'json'
+            body: JSON.stringify(returnArr)
         };
 
-        try
-        {
-            const resp = await axios(config);
-            const returnData = resp.data.map(data => <candleStickData>({date: data.date,time:data.minute, openPrice: data.open, closePrice: data.close}));
-            return {
-                statusCode: 200,
-                headers: {
-                    "Access-Control-Allow-Headers": '*',
-                    "Access-Control-Allow-Origin": '*'
-                },
-                body: JSON.stringify(returnData)
-            };
-        }
-        catch(e)
-        {
-            return {
-                statusCode: 400,
-                headers: {
-                    "Access-Control-Allow-Headers": '*',
-                    "Access-Control-Allow-Origin": '*'
-                },
-                body: e
-            };
-        }
-        
     }
-    return {
-        statusCode: 400,
-        headers: {
-            "Access-Control-Allow-Headers": '*',
-            "Access-Control-Allow-Origin": '*'
-        },
-        body: JSON.stringify({
-            message: 'Ticker was not provided or was invalid'
-        })
-    };    
-    
+    else
+    {
+        return {
+            statusCode: 500,
+            headers: {
+                "Access-Control-Allow-Headers": '*',
+                "Access-Control-Allow-Origin": '*'
+            },
+            body: 'Unable to Complete Request'
+        }
+    }    
 }
