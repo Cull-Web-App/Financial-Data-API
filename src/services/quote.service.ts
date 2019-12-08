@@ -1,19 +1,25 @@
 import axios, { AxiosResponse, AxiosError, AxiosRequestConfig } from 'axios';
+import { injectable } from 'inversify';
 import { Quote } from '../models';
 import CONFIG from '../config';
+import { IQuoteService } from '../interfaces';
 
-export const getSingleQuoteAtInterval = (symbol: string, date: Date, interval: string): Quote => {
+@injectable()
+export class QuoteService implements IQuoteService {
 
-};
+    public async getSingleQuoteAtInterval(symbol: string, date: Date, interval: string): Promise<Quote> {
 
-export const getQuotesAtInterval = (): Array<Quote> => {
-
-};
-
-export const updateQuoteForAsset = (): Quote => {
-
-};
-
-export const batchUpdateQuotesForAssets = (): Quote => {
-
-};
+    }
+    
+    public async getQuotesAtInterval(): Promise<Array<Quote>> {
+    
+    }
+    
+    public async updateQuoteForAsset(): Promise<Quote> {
+    
+    }
+    
+    public async batchUpdateQuotesForAssets(): Promise<Array<Quote>> {
+    
+    }
+}
