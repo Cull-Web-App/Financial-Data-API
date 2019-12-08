@@ -11,27 +11,51 @@
 #
 # Happy Coding!
 
-service: sls-financial-data-api
+service: financial-data-api
+frameworkVersion: ">=1.16.0 <2.0.0"
+
+plugins:
+  - serverless-offline
+  - serverless-plugin-typescript
 
 provider:
   name: aws
-  runtime: nodejs10.x
+  runtime: nodejs12.x
   stage: dev
+  region: us-east-2
+  websocketApiRouteSelectionExpression: $request.body.action
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - "execute-api:ManageConnections"
+      Resource:
+        - "arn:aws:execute-api:*:*:**/@connections/*"
+    - Effect: "Allow"
+      Action:
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+      Resource: 
+        - "arn:aws:dynamodb:us-east-2:659125015803:table/MockFinancialData"
+        - "arn:aws:dynamodb:us-east-2:659125015803:table/FinancialDataSubscriptions"
   environment:
     API_KEY: ${ssm:API_KEY}
 
 package:
   exclude:
-    - src/
-    - node_modules
+    - node_modules/**/*
+  include:
+    - src/!{*.spec}.ts
 
 environment:
   SLS_DEBUG: true
 
-
 functions:
-  get_tickers:
-    handler: dist/handler.candlestickData
+  getStockQuotesAtInterval:
+    handler: handler.getStockQuotesAtInterval
     events:
       - http:
           path: /candlestick
