@@ -6,10 +6,12 @@ import { IConfigurationService } from '../interfaces';
 const lambda: Lambda = new Lambda();
 
 @injectable()
-export class ConfigurationService implements IConfigurationService {
-    public async getConfiguration(): Promise<Configuration> {
+export class ConfigurationService implements IConfigurationService
+{
+    public async getConfiguration(): Promise<Configuration>
+    {
         const response: Lambda.InvocationResponse = await lambda.invoke({
-            FunctionName: 'CullConfiguration',
+            FunctionName: 'configuration-api-dev-getConfigForEnv',
             InvocationType: 'Event'
         }).promise();
     

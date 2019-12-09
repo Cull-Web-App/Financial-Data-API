@@ -1,14 +1,40 @@
-import { DynamoDB } from 'aws-sdk';
-import { injectable } from 'inversify';
-import { TABLES } from '../constants';
-import { documentClient } from '../config';
+import { DynamoDB, ApiGatewayManagementApi } from 'aws-sdk';
+import { injectable, inject } from 'inversify';
+import { TABLES, SERVICE_IDENTIFIERS } from '../constants';
+import { Subscription } from '../models';
 import { ISubscriptionService } from '../interfaces';
+import { container } from '../config';
+
+const apigwManagementApi: ApiGatewayManagementApi = new ApiGatewayManagementApi({
+    endpoint: requestContext.domainName + '/' + requestContext.stage
+});
 
 @injectable()
-export class SubscriptionService implements ISubscriptionService {
+export class SubscriptionService implements ISubscriptionService
+{
 
-    public async getSubscribedSymbols(connectionId: string): Promise<Array<string>> {
-        const response: DynamoDB.GetItemOutput = await documentClient.get({
+    public constructor(@inject(SERVICE_IDENTIFIERS.IDYNAMODB_DOCUMENTCLIENT) private readonly documentClient: DynamoDB.DocumentClient)
+    {
+
+    }
+
+    public async getAllClientConnectionInfo(): Promise<Map<string, Subscription>>
+    {
+        const response: DynamoDB.ScanOutput = await this.documentClient.scan({
+            TableName: TABLES.CONNECTIONS
+        }).promise();
+
+        return new Map<string, Subscription>((response.Items as DynamoDB.ItemList).map((itemMap: DynamoDB.AttributeMap) => {
+            return [itemMap.key.S as string, {
+                interval: itemMap.interval.S,
+                symbols: itemMap.symbols.SS
+            } as Subscription];
+        }));
+    }
+
+    public async getSubscribedSymbols(connectionId: string): Promise<Array<string>>
+    {
+        const response: DynamoDB.GetItemOutput = await this.documentClient.get({
             TableName: TABLES.CONNECTIONS,
             Key: {
                 connectionId
@@ -16,11 +42,12 @@ export class SubscriptionService implements ISubscriptionService {
         }).promise();
     
         // Map the dynamo output to the array type
-        return (response.Item as DynamoDB.AttributeMap)['symbols'].L as Array<string>;
+        return (response.Item as DynamoDB.AttributeMap)['symbols'].SS as Array<string>;
     }
 
-    public async createSubscriptions(connectionId: string, symbolsToSub: Array<string>, interval: string): Promise<Array<string>> {
-        const createdSubscriptions: DynamoDB.UpdateItemOutput = await documentClient.update({
+    public async createSubscriptions(connectionId: string, symbolsToSub: Array<string>, interval: string): Promise<Array<string>>
+    {
+        const createdSubscriptions: DynamoDB.UpdateItemOutput = await this.documentClient.update({
             TableName: TABLES.CONNECTIONS,
             Key: {
                 connectionId
@@ -37,30 +64,28 @@ export class SubscriptionService implements ISubscriptionService {
             }
         }).promise();
     
-        return (createdSubscriptions.Attributes as DynamoDB.AttributeMap)['symbols'].L as Array<string>;
+        return (createdSubscriptions.Attributes as DynamoDB.AttributeMap)['symbols'].SS as Array<string>;
     }
 
-    public async deleteSubscriptions(connectionId: string, symbolsToUnsub: Array<string>): Promise<Array<string>> {
+    public async deleteSubscriptions(connectionId: string, symbolsToUnsub: Array<string>): Promise<Array<string>>
+    {
         // First get the subscriptions, then remove the list from the symbols
         const subscribedSymbols: Array<string> = await this.getSubscribedSymbols(connectionId);
 
-        // Filter out all the symbols from the symbols list
+        // Filter out all the symbols from the symbols list that are being unsubbed -- update afterwards
         const newSymbols: Array<string> = subscribedSymbols.filter((symbol: string) => {
             return !symbolsToUnsub.includes(symbol);
         });
 
         if (newSymbols.length === 0)
         {
-            return await documentClient.update({
-                TableName: TABLES.CONNECTIONS,
-                Key: {
-                    connectionId
-                }
-            }).promise();
+            // There are no longer any symbols being subbed by this client -- delete it from the table
+            await this.deleteAllSubscriptions(connectionId);
+            return new Array<string>();
         }
         else
         {
-            return await documentClient.update({
+            const newSubscriptions: DynamoDB.UpdateItemOutput = await this.documentClient.update({
                 TableName: TABLES.CONNECTIONS,
                 Key: {
                     connectionId
@@ -73,6 +98,38 @@ export class SubscriptionService implements ISubscriptionService {
                     ':new_symbols': newSymbols
                 }
             }).promise();
+
+            return (newSubscriptions.Attributes as DynamoDB.AttributeMap)['symbols'].SS as Array<string>;
         }
+    }
+
+    /*
+        Delete the connection Id from the table -- used on deletion requests and when subscriptions are zeroed out
+    */
+    public async deleteAllSubscriptions(connectionId: string): Promise<boolean>
+    {
+        try
+        {
+            await this.documentClient.delete({
+                TableName: TABLES.CONNECTIONS,
+                Key: {
+                    connectionId
+                }
+            }).promise();
+            return true;
+        }
+        catch (error)
+        {
+            console.error(error.toString());
+            return false;
+        }
+    }
+
+    public async sendMessageToClient(connectionId: string, message: string): Promise<void>
+    {
+        await apigwManagementApi.postToConnection({
+            ConnectionId: connectionId,
+            Data: message
+        }).promise();
     }
 }

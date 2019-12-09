@@ -4,19 +4,19 @@
   "description": "Financial API to retrieve financial data from data providers",
   "main": "index.js",
   "scripts": {
-    "debug-lambda": "export SLS_DEBUG=* && node --inspect /usr/local/bin/serverless offline -s dev",
-    "build": "npm run copy && tsc -p ./",
+    "debug-lambda": "export SLS_DEBUG=* && node --inspect=5858 /usr/local/bin/serverless offline -s dev",
     "lint": "npx eslint ./**/*.ts",
-    "copy": "copyfiles src/**/*.json dist/",
     "deploy": "npm run lint && npm run build && sls deploy"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "aws-lambda": "^0.1.2",
     "aws-sdk": "^2.532.0",
     "axios": "^0.19.0",
     "inversify": "^5.0.1",
-    "reflect-metadata": "^0.1.13"
+    "reflect-metadata": "^0.1.13",
+    "serverless-plugin-typescript": "^1.1.9"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.31",
@@ -24,7 +24,9 @@
     "@types/node": "^12.7.5",
     "@typescript-eslint/eslint-plugin": "^2.10.0",
     "@typescript-eslint/parser": "^2.10.0",
+    "copyfiles": "^2.1.1",
     "eslint": "^6.7.2",
-    "typescript": "^3.7.3"
+    "typescript": "^3.7.3",
+    "serverless-offline": "^4.9.4"
   }
 }

@@ -1,2 +1,2 @@
 export * from './aws.config';
-export * from './service.config';
+export * from './inversify.config';

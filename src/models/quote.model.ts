@@ -1,5 +1,6 @@
 
-export interface Quote {
+export interface Quote
+{
     high: number;
     low: number;
     open: number;

@@ -49,16 +49,17 @@ package:
     - node_modules/**/*
   include:
     - src/!{*.spec}.ts
+    - src/**/*.json
 
 environment:
   SLS_DEBUG: true
 
 functions:
   getStockQuotesAtInterval:
-    handler: handler.getStockQuotesAtInterval
+    handler: src/handler.getStockQuotesAtInterval
     events:
       - http:
-          path: /candlestick
+          path: /getStockQuotesAtInterval
           method: get
           cors: true
 #          integration: lambda
@@ -269,4 +270,6 @@ functions:
 #     Type: String
 #     Default: Cull-Web-UI
 
-  
+custom:
+  serverless-offline:
+    port: 4000

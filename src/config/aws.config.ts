@@ -4,8 +4,4 @@ config.update({
     region: 'Region'
 });
 
-export let documentClient: DynamoDB.DocumentClient;
-
-export const configureConnections = (): void => {
-    documentClient = new DynamoDB.DocumentClient();
-};
+export const documentClient: DynamoDB.DocumentClient = new DynamoDB.DocumentClient();
