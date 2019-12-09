@@ -24,6 +24,9 @@ provider:
   stage: dev
   region: us-east-2
   websocketApiRouteSelectionExpression: $request.body.action
+  environment:
+    SLS_DEBUG: true
+    NODE_ENV: "dev"
   iamRoleStatements:
     - Effect: Allow
       Action:
@@ -41,8 +44,6 @@ provider:
       Resource: 
         - "arn:aws:dynamodb:us-east-2:659125015803:table/MockFinancialData"
         - "arn:aws:dynamodb:us-east-2:659125015803:table/FinancialDataSubscriptions"
-  environment:
-    API_KEY: ${ssm:API_KEY}
 
 package:
   exclude:
@@ -50,9 +51,6 @@ package:
   include:
     - src/!{*.spec}.ts
     - src/**/*.json
-
-environment:
-  SLS_DEBUG: true
 
 functions:
   getStockQuotesAtInterval:

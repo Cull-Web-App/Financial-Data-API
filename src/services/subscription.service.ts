@@ -5,15 +5,19 @@ import { Subscription } from '../models';
 import { ISubscriptionService } from '../interfaces';
 import { container } from '../config';
 
-const apigwManagementApi: ApiGatewayManagementApi = new ApiGatewayManagementApi({
-    endpoint: requestContext.domainName + '/' + requestContext.stage
-});
+// console.log(container);
+// const apigwManagementApi: ApiGatewayManagementApi = new ApiGatewayManagementApi({
+//     endpoint: container.get(SERVICE_IDENTIFIERS.CONFIGURATION)
+// });
 
 @injectable()
 export class SubscriptionService implements ISubscriptionService
 {
 
-    public constructor(@inject(SERVICE_IDENTIFIERS.IDYNAMODB_DOCUMENTCLIENT) private readonly documentClient: DynamoDB.DocumentClient)
+    public constructor(
+        @inject(SERVICE_IDENTIFIERS.IDYNAMODB_DOCUMENTCLIENT) private readonly documentClient: DynamoDB.DocumentClient,
+        @inject(SERVICE_IDENTIFIERS.IAPI_GATEWAY_MANAGEMENT) private readonly apigwManagementApi: ApiGatewayManagementApi
+    )
     {
 
     }
@@ -127,7 +131,7 @@ export class SubscriptionService implements ISubscriptionService
 
     public async sendMessageToClient(connectionId: string, message: string): Promise<void>
     {
-        await apigwManagementApi.postToConnection({
+        await this.apigwManagementApi.postToConnection({
             ConnectionId: connectionId,
             Data: message
         }).promise();

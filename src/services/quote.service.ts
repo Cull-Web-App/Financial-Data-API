@@ -14,21 +14,21 @@ export class QuoteService implements IQuoteService
 
     public async getSingleQuoteAtInterval(symbol: string, date: Date, interval: string): Promise<Quote>
     {
-
+        throw new Error();
     }
     
     public async getQuotesAtInterval(symbol: string, startDate: Date, endDate: Date, interval: string): Promise<Array<Quote>>
     {
-    
+        throw new Error();
     }
     
     public async updateQuoteForAsset(symbol: string): Promise<Quote>
     {
-    
+        throw new Error();
     }
     
     public async batchUpdateQuotesForAssets(): Promise<Map<string, Quote>>
     {
-    
+        throw new Error();
     }
 }

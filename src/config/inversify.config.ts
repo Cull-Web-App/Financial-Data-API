@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import { Container, AsyncContainerModule, interfaces } from 'inversify';
-import { DynamoDB } from 'aws-sdk';
+import { DynamoDB, ApiGatewayManagementApi, APIGateway } from 'aws-sdk';
 
 import {
     IConfigurationService,
@@ -25,6 +25,7 @@ const asynContainerModule: AsyncContainerModule = new AsyncContainerModule(async
 
     // Does this work??
     bind<DynamoDB.DocumentClient>(SERVICE_IDENTIFIERS.IDYNAMODB_DOCUMENTCLIENT).to(DynamoDB.DocumentClient).inSingletonScope();
+    bind<ApiGatewayManagementApi>(SERVICE_IDENTIFIERS.IAPI_GATEWAY_MANAGEMENT).to(ApiGatewayManagementApi).inSingletonScope(); // need params here??
 
     // Set the configuration constant to the resolution of the promise -- does this work??
     bind<Configuration>(SERVICE_IDENTIFIERS.CONFIGURATION).toConstantValue(await configServiceInstance.getConfiguration());
