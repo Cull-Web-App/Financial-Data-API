@@ -1,6 +1,6 @@
 import { Configuration } from "../models";
 
-export interface IConfigurationService
+export interface IAppConfigurationService
 {
     getConfiguration(): Promise<Configuration>;
 }

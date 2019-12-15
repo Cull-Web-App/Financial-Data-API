@@ -2,29 +2,21 @@ import { DynamoDB, ApiGatewayManagementApi } from 'aws-sdk';
 import { injectable, inject } from 'inversify';
 import { TABLES, SERVICE_IDENTIFIERS } from '../constants';
 import { Subscription } from '../models';
-import { ISubscriptionService } from '../interfaces';
+import { ISubscriptionService, IAWSConfigurationService } from '../interfaces';
 import { container } from '../config';
-
-// console.log(container);
-// const apigwManagementApi: ApiGatewayManagementApi = new ApiGatewayManagementApi({
-//     endpoint: container.get(SERVICE_IDENTIFIERS.CONFIGURATION)
-// });
 
 @injectable()
 export class SubscriptionService implements ISubscriptionService
 {
 
-    public constructor(
-        @inject(SERVICE_IDENTIFIERS.IDYNAMODB_DOCUMENTCLIENT) private readonly documentClient: DynamoDB.DocumentClient,
-        @inject(SERVICE_IDENTIFIERS.IAPI_GATEWAY_MANAGEMENT) private readonly apigwManagementApi: ApiGatewayManagementApi
-    )
+    public constructor(@inject(SERVICE_IDENTIFIERS.IAWS_CONFIGURATION_SERVICE) private readonly awsConfigurationService: IAWSConfigurationService)
     {
 
     }
 
     public async getAllClientConnectionInfo(): Promise<Map<string, Subscription>>
     {
-        const response: DynamoDB.ScanOutput = await this.documentClient.scan({
+        const response: DynamoDB.ScanOutput = await this.awsConfigurationService.documentClient.scan({
             TableName: TABLES.CONNECTIONS
         }).promise();
 
@@ -38,7 +30,7 @@ export class SubscriptionService implements ISubscriptionService
 
     public async getSubscribedSymbols(connectionId: string): Promise<Array<string>>
     {
-        const response: DynamoDB.GetItemOutput = await this.documentClient.get({
+        const response: DynamoDB.GetItemOutput = await this.awsConfigurationService.documentClient.get({
             TableName: TABLES.CONNECTIONS,
             Key: {
                 connectionId
@@ -51,7 +43,7 @@ export class SubscriptionService implements ISubscriptionService
 
     public async createSubscriptions(connectionId: string, symbolsToSub: Array<string>, interval: string): Promise<Array<string>>
     {
-        const createdSubscriptions: DynamoDB.UpdateItemOutput = await this.documentClient.update({
+        const createdSubscriptions: DynamoDB.UpdateItemOutput = await this.awsConfigurationService.documentClient.update({
             TableName: TABLES.CONNECTIONS,
             Key: {
                 connectionId
@@ -89,7 +81,7 @@ export class SubscriptionService implements ISubscriptionService
         }
         else
         {
-            const newSubscriptions: DynamoDB.UpdateItemOutput = await this.documentClient.update({
+            const newSubscriptions: DynamoDB.UpdateItemOutput = await this.awsConfigurationService.documentClient.update({
                 TableName: TABLES.CONNECTIONS,
                 Key: {
                     connectionId
@@ -114,7 +106,7 @@ export class SubscriptionService implements ISubscriptionService
     {
         try
         {
-            await this.documentClient.delete({
+            await this.awsConfigurationService.documentClient.delete({
                 TableName: TABLES.CONNECTIONS,
                 Key: {
                     connectionId
@@ -131,7 +123,7 @@ export class SubscriptionService implements ISubscriptionService
 
     public async sendMessageToClient(connectionId: string, message: string): Promise<void>
     {
-        await this.apigwManagementApi.postToConnection({
+        await this.awsConfigurationService.apigwManagementApi.postToConnection({
             ConnectionId: connectionId,
             Data: message
         }).promise();

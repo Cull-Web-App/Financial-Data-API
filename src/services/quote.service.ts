@@ -1,13 +1,16 @@
 import { injectable, inject } from 'inversify';
 import { Quote, Configuration } from '../models';
-import { IQuoteService } from '../interfaces';
+import { IQuoteService, IAWSConfigurationService, IAppConfigurationService } from '../interfaces';
 import { SERVICE_IDENTIFIERS } from '../constants';
 
 @injectable()
 export class QuoteService implements IQuoteService
 {
 
-    public constructor(@inject(SERVICE_IDENTIFIERS.CONFIGURATION) private readonly configuration: Configuration)
+    public constructor(
+        @inject(SERVICE_IDENTIFIERS.IAPP_CONFIGURATION_SERVICE) private readonly appConfigurationService: IAppConfigurationService,
+        @inject(SERVICE_IDENTIFIERS.IAWS_CONFIGURATION_SERVICE) private readonly awsConfigurationService: IAWSConfigurationService
+    )
     {
 
     }
