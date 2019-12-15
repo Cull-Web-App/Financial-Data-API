@@ -6,7 +6,6 @@ import { SERVICE_IDENTIFIERS } from '../constants';
 @injectable()
 export class QuoteService implements IQuoteService
 {
-
     public constructor(
         @inject(SERVICE_IDENTIFIERS.IAPP_CONFIGURATION_SERVICE) private readonly appConfigurationService: IAppConfigurationService,
         @inject(SERVICE_IDENTIFIERS.IAWS_CONFIGURATION_SERVICE) private readonly awsConfigurationService: IAWSConfigurationService

@@ -3,7 +3,7 @@ export interface Configuration
     FINANCIAL_DATA_API: string;
     DATA_SOURCE_URL: string;
     API_KEY: string;
-    USE_MOCK_SERVICE: boolean;
+    API_KEY_REQUIRED: boolean;
     AUTH_API: {
         REGION: string,
         USER_POOL_ID: string,
