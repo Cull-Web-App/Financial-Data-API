@@ -3,7 +3,6 @@ import { injectable, inject } from 'inversify';
 import { TABLES, SERVICE_IDENTIFIERS } from '../constants';
 import { Subscription } from '../models';
 import { ISubscriptionService, IAWSConfigurationService } from '../interfaces';
-import { container } from '../config';
 
 @injectable()
 export class SubscriptionService implements ISubscriptionService
@@ -123,7 +122,8 @@ export class SubscriptionService implements ISubscriptionService
 
     public async sendMessageToClient(connectionId: string, message: string): Promise<void>
     {
-        await this.awsConfigurationService.apigwManagementApi.postToConnection({
+        const apiGatewayManagementAPI: ApiGatewayManagementApi = await this.awsConfigurationService.getAPIGatewayManagementAPI();
+        await apiGatewayManagementAPI.postToConnection({
             ConnectionId: connectionId,
             Data: message
         }).promise();

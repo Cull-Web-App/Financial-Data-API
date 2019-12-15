@@ -4,5 +4,5 @@ export interface IAWSConfigurationService
 {
     lambda: Lambda;
     documentClient: DynamoDB.DocumentClient;
-    apigwManagementApi: ApiGatewayManagementApi;
+    getAPIGatewayManagementAPI(): Promise<ApiGatewayManagementApi>;
 }

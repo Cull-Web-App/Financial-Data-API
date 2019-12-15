@@ -4,9 +4,6 @@ import { HTTP_STATUS_CODES, SERVICE_IDENTIFIERS, WS_CONNECTION_TYPES } from './c
 import { IQuoteService, ISubscriptionService } from './interfaces';
 import { Quote, Subscription } from './models';
 
-const subscriptionService: ISubscriptionService = container.get(SERVICE_IDENTIFIERS.ISUBCRIPTION_SERVICE);
-const quoteService: IQuoteService = container.get(SERVICE_IDENTIFIERS.IQUOTE_SERVICE);
-
 export const getStockQuotesAtInterval: Handler = async (event: APIGatewayProxyEvent, context: Context): Promise<APIGatewayProxyResult> => {
     // If nothing is passed -- client error
     if (!event.queryStringParameters)
@@ -74,6 +71,8 @@ export const quoteSubscriptionConnectionHandler: Handler = async (event: APIGate
         };
     }
 
+    const subscriptionService: ISubscriptionService = container.get(SERVICE_IDENTIFIERS.ISUBCRIPTION_SERVICE);
+
     // Create or delete the subscription according to the route key
     if (routeKey === WS_CONNECTION_TYPES.CONNECT)
     {
@@ -99,6 +98,9 @@ export const quoteSubscriptionConnectionHandler: Handler = async (event: APIGate
     This will be triggered by a timer in Cloudwatch on a 1s basis. Will need to be updated later to handle different intervals
 */
 export const updateQuotesForAllAssetsAndPublishMessages: Handler = async (event: APIGatewayProxyEvent, context: Context): Promise<APIGatewayProxyResult> => {
+    const subscriptionService: ISubscriptionService = container.get(SERVICE_IDENTIFIERS.ISUBCRIPTION_SERVICE);
+    const quoteService: IQuoteService = container.get(SERVICE_IDENTIFIERS.IQUOTE_SERVICE);
+
     // Now call the service to get the updated quotes for every asset
     const updatedQuotes: Map<string, Quote> = await quoteService.batchUpdateQuotesForAssets();
 
@@ -148,6 +150,7 @@ export const updateQuotesForAllAssets: Handler = async (event: APIGatewayProxyEv
         };
     }
 
+    const quoteService: IQuoteService = container.get(SERVICE_IDENTIFIERS.IQUOTE_SERVICE);
     return {
         statusCode: HTTP_STATUS_CODES.SUCCESS,
         body: JSON.stringify({
@@ -181,6 +184,7 @@ export const updateQuoteForAsset: Handler = async (event: APIGatewayProxyEvent, 
         };
     }
 
+    const quoteService: IQuoteService = container.get(SERVICE_IDENTIFIERS.IQUOTE_SERVICE);
     // Create the latest quote for this symbol -- use the quote service
     return {
         statusCode: HTTP_STATUS_CODES.SUCCESS,

@@ -1,5 +1,5 @@
 import { injectable, inject } from 'inversify';
-import { Quote, Configuration } from '../models';
+import { Quote } from '../models';
 import { IQuoteService, IAWSConfigurationService, IAppConfigurationService } from '../interfaces';
 import { SERVICE_IDENTIFIERS } from '../constants';
 

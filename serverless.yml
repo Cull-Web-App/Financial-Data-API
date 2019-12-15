@@ -60,6 +60,13 @@ functions:
           path: /getStockQuotesAtInterval
           method: get
           cors: true
+  updateQuotesForAllAssetsAndPublishMessages:
+    handler: src/handler.updateQuotesForAllAssetsAndPublishMessages
+    events:
+      - http:
+          path: /updateQuotesForAllAssetsAndPublishMessages
+          method: get
+          cors: true
 #          integration: lambda
 #          authorizer:
 #            name: Cull-Users
