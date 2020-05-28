@@ -75,7 +75,7 @@ export class SubscriptionService implements ISubscriptionService
         {
             // There are no longer any symbols being subbed by this client -- delete it from the table
             await this.deleteAllSubscriptions(connectionId);
-            return new Array<string>();
+            return [];
         }
         else
         {

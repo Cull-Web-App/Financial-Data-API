@@ -21,7 +21,7 @@
             "runtimeExecutable": "npm",
             "runtimeArgs": [
                 "run",
-                "debug-lambda"
+                "debug-lambda-unix"
             ],
             "port": 5858
         }

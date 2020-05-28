@@ -29,9 +29,9 @@ export class AWSConfigurationService implements IAWSConfigurationService
     {
         if (!this.apigwManagementApi)
         {
-            const configuration: Configuration = await this.appConfigurationService.getConfiguration();
+            const { apiConfig } = await this.appConfigurationService.getAllConfiguration();
             this.apigwManagementApi = new ApiGatewayManagementApi({
-                endpoint: configuration.FINANCIAL_DATA_API
+                endpoint: apiConfig.FINANCIAL_DATA_API
             });
         }
         return this.apigwManagementApi;

@@ -1,6 +1,8 @@
-import { Configuration } from "../models";
+import { Configuration, EnvConfiguration, ApiConfiguration } from "../models";
 
 export interface IAppConfigurationService
 {
-    getConfiguration(): Promise<Configuration>;
+    getEnvConfiguration(): Promise<EnvConfiguration>;
+    getApiConfiguration(): Promise<ApiConfiguration>;
+    getAllConfiguration(): Promise<Configuration>;
 }

@@ -122,7 +122,6 @@ export const updateQuotesForAllAssetsAndPublishMessages: Handler = async (event:
         statusCode: HTTP_STATUS_CODES.SUCCESS,
         body: JSON.stringify('Successfully updated all clients')
     };
-
 };
 
 /*
