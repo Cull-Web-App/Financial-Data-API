@@ -13,6 +13,9 @@ export class SubscriptionService implements ISubscriptionService
 
     }
 
+    /**
+     * Get all the info for every client (connection id) as a map of connection id to sub info
+     */
     public async getAllClientConnectionInfo(): Promise<Map<string, Subscription>>
     {
         const response: DynamoDB.ScanOutput = await this.awsConfigurationService.documentClient.scan({
@@ -27,6 +30,10 @@ export class SubscriptionService implements ISubscriptionService
         }));
     }
 
+    /**
+     * Get the symbols the user subscribes to using the connection id
+     * @param connectionId user's connection id
+     */
     public async getSubscribedSymbols(connectionId: string): Promise<Array<string>>
     {
         const response: DynamoDB.GetItemOutput = await this.awsConfigurationService.documentClient.get({
@@ -40,6 +47,12 @@ export class SubscriptionService implements ISubscriptionService
         return (response.Item as DynamoDB.AttributeMap)['symbols'].SS as Array<string>;
     }
 
+    /**
+     * Subscribe to a set of symbols to receive WS updates
+     * @param connectionId user's connection id
+     * @param symbolsToSub list of symbols to subscibe to
+     * @param interval interval to subscribe at
+     */
     public async createSubscriptions(connectionId: string, symbolsToSub: Array<string>, interval: string): Promise<Array<string>>
     {
         const createdSubscriptions: DynamoDB.UpdateItemOutput = await this.awsConfigurationService.documentClient.update({
@@ -62,6 +75,12 @@ export class SubscriptionService implements ISubscriptionService
         return (createdSubscriptions.Attributes as DynamoDB.AttributeMap)['symbols'].SS as Array<string>;
     }
 
+    /**
+     * Delete a set of symbols from the clients subsciption list. The client will no longer receive updates for these
+     * subscriptions
+     * @param connectionId user's connection id
+     * @param symbolsToUnsub list of subscriptions to unsub from
+     */
     public async deleteSubscriptions(connectionId: string, symbolsToUnsub: Array<string>): Promise<Array<string>>
     {
         // First get the subscriptions, then remove the list from the symbols
@@ -98,8 +117,9 @@ export class SubscriptionService implements ISubscriptionService
         }
     }
 
-    /*
-        Delete the connection Id from the table -- used on deletion requests and when subscriptions are zeroed out
+    /**
+     * Delete the connection Id from the table -- used on deletion requests and when subscriptions are zeroed out
+     * @param connectionId user's connection id
     */
     public async deleteAllSubscriptions(connectionId: string): Promise<boolean>
     {
@@ -120,6 +140,11 @@ export class SubscriptionService implements ISubscriptionService
         }
     }
 
+    /**
+     * Send a message to the client using the WS api gateway
+     * @param connectionId user's connection id
+     * @param message message to send on the socket
+     */
     public async sendMessageToClient(connectionId: string, message: string): Promise<void>
     {
         const apiGatewayManagementAPI: ApiGatewayManagementApi = await this.awsConfigurationService.getAPIGatewayManagementAPI();

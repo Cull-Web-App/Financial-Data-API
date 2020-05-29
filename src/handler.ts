@@ -4,6 +4,11 @@ import { HTTP_STATUS_CODES, SERVICE_IDENTIFIERS, WS_CONNECTION_TYPES } from './c
 import { IQuoteService, ISubscriptionService } from './interfaces';
 import { Quote, Subscription } from './models';
 
+/**
+ * Get the stock quote for a specific time interval. For now, just the default interval is allowed
+ * @param event 
+ * @param context 
+ */
 export const getStockQuotesAtInterval: Handler = async (event: APIGatewayProxyEvent, context: Context): Promise<APIGatewayProxyResult> => {
     // If nothing is passed -- client error
     if (!event.queryStringParameters)
@@ -23,10 +28,12 @@ export const getStockQuotesAtInterval: Handler = async (event: APIGatewayProxyEv
         // Convert the start and end dates into date objects -- requires that they are passed correctly in string format
         const sDate = new Date(startDate);
         const eDate = new Date(endDate);
+        const quoteService: IQuoteService = container.get(SERVICE_IDENTIFIERS.IQUOTE_SERVICE);
 
         return {
             statusCode: HTTP_STATUS_CODES.SUCCESS,
             body: JSON.stringify({
+                quotes: await quoteService.getQuotesAtInterval(symbol, sDate, eDate, interval)
             })
         };
     }
