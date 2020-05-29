@@ -10,18 +10,30 @@
             "name": "Attach by Process ID",
             "processId": "${command:PickProcess}",
             "outFiles": [
-                "${workspaceFolder}/distlib/src/server/koa/index.js"
+                "${workspaceFolder}/dist/handler.js"
             ]
         },
         {
             "type": "node",
             "request": "launch",
-            "name": "Debug Lambda Application",
+            "name": "Debug Lambda Application Unix",
             "cwd": "${workspaceRoot}",
             "runtimeExecutable": "npm",
             "runtimeArgs": [
                 "run",
                 "debug-lambda-unix"
+            ],
+            "port": 5858
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Debug Lambda Application Windows",
+            "cwd": "${workspaceRoot}",
+            "runtimeExecutable": "npm",
+            "runtimeArgs": [
+                "run",
+                "debug-lambda-win"
             ],
             "port": 5858
         }

@@ -6,8 +6,6 @@ import { Quote, Subscription } from './models';
 
 /**
  * Get the stock quote for a specific time interval. For now, just the default interval is allowed
- * @param event 
- * @param context 
  */
 export const getStockQuotesAtInterval: Handler = async (event: APIGatewayProxyEvent, context: Context): Promise<APIGatewayProxyResult> => {
     // If nothing is passed -- client error

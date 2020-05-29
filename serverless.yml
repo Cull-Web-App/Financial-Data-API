@@ -42,8 +42,8 @@ provider:
         - dynamodb:UpdateItem
         - dynamodb:DeleteItem
       Resource: 
-        - "arn:aws:dynamodb:us-east-2:659125015803:table/MockFinancialData"
-        - "arn:aws:dynamodb:us-east-2:659125015803:table/FinancialDataSubscriptions"
+        - !GetAtt FinancialDataQuotes.Arn
+        - !GetAtt FinancialDataSubscriptions.Arn
 
 package:
   exclude:
@@ -60,15 +60,75 @@ functions:
           path: /getStockQuotesAtInterval
           method: get
           cors: true
-  updateQuotesForAllAssetsAndPublishMessages:
+  updateQuotesForAllAssetsAndPublish:
     handler: src/handler.updateQuotesForAllAssetsAndPublishMessages
     events:
       - http:
           path: /updateQuotesForAllAssetsAndPublishMessages
           method: get
           cors: true
+  quoteSubscriptionConnectionHandler:
+    handler: src/handler.quoteSubscriptionConnectionHandler
+    events:
+      - websocket:
+          route: $connect
+      - websocket:
+          route: $disconnect
+      - websocket:
+          route: $default
+  updateQuotesForAllAssets:
+    handler: src/handler.updateQuotesForAllAssets
+    events:
+      - http:
+          path: /updateQuotesForAllAssets
+          method: post
+          cors: true
+  updateQuoteForAsset:
+    handler: src/handler.updateQuoteForAsset
+    events:
+      - http:
+          path: /updateQuoteForAsset
+          method: post
+          cors: true
+
+# Define CFN resources here
+resources:
+  Resources:
+    # Table for the quote info
+    FinancialDataQuotes:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: FinancialDataQuotes
+        AttributeDefinitions:
+          - AttributeName: symbol
+            AttributeType: S
+          - AttributeName: dateTime
+            AttributeType: S
+        KeySchema:
+          - AttributeName: symbol
+            KeyType: HASH
+          - AttributeName: dateTime
+            KeyType: RANGE
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+    # Table for the WS subscription info
+    FinancialDataSubscriptions:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: FinancialDataSubscriptions
+        AttributeDefinitions:
+          - AttributeName: connectionId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: connectionId
+            KeyType: HASH
+        # Do we want provisioned throughput? Might want to update this to scale
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
 
 custom:
   serverless-offline:
-    port: 4000
+    port: 8000
   myStage: ${opt:stage, self:provider.stage}
