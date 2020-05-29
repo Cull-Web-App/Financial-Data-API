@@ -7,12 +7,12 @@
     "debug-lambda-unix": "export SLS_DEBUG=* && node --inspect=5858 /usr/local/bin/serverless offline -s dev",
     "debug-lambda-win": "SET SLS_DEBUG=* && node --inspect=5858 %USERPROFILE%\\AppData\\Roaming\\npm\\node_modules\\serverless\\bin\\serverless offline -s dev",
     "lint": "npx eslint ./**/*.ts",
-    "deploy": "npm run lint && sls deploy"
+    "deploy": "npm run lint && sls deploy -s prod"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "aws-lambda": "^0.1.2",
+    "aws-lambda": "^1.0.5",
     "aws-sdk": "^2.685.0",
     "axios": "^0.19.2",
     "inversify": "^5.0.1",

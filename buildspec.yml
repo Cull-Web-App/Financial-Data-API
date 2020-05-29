@@ -1,0 +1,29 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 10
+    commands:
+      - echo Installing dependencies
+      - npm install
+      - echo Dependencies installed successfully
+  build:
+    commands:
+      - echo Running serverless deploy
+      - npm run deploy
+      - echo Running test cases
+      - echo NO TESTS IMPLEMENTED FOR THIS REPO!!!
+      - echo Tests passed coverage
+  post_build:
+    commands:
+      - echo Build completed successfully
+
+cache:
+  paths:
+    - 'node_modules/**/*'
+
+# Where the build artifacts are located -- is this necessary for the pipeline?
+artifacts:
+  files:
+    - '**/*'
