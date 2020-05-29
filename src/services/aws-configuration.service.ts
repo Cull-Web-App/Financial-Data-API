@@ -4,7 +4,6 @@ import getDecorators from 'inversify-inject-decorators';
 import { SERVICE_IDENTIFIERS } from '../constants';
 import { IAWSConfigurationService, IAppConfigurationService } from '../interfaces';
 import { container } from '../config';
-import { Configuration } from '../models';
 
 // Use lazy injection to avoid the circular dependency
 const { lazyInject } = getDecorators(container, true);

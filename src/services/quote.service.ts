@@ -1,16 +1,15 @@
 import { injectable, inject } from 'inversify';
 import { Quote } from '../models';
-import { IQuoteService, IAWSConfigurationService, IAppConfigurationService } from '../interfaces';
+import { IQuoteService, IAWSConfigurationService, IIEXService } from '../interfaces';
 import { SERVICE_IDENTIFIERS, TABLES } from '../constants';
 import { DynamoDB } from 'aws-sdk';
-import axios from 'axios';
 
 @injectable()
 export class QuoteService implements IQuoteService
 {
     public constructor(
-        @inject(SERVICE_IDENTIFIERS.IAPP_CONFIGURATION_SERVICE) private readonly appConfigurationService: IAppConfigurationService,
-        @inject(SERVICE_IDENTIFIERS.IAWS_CONFIGURATION_SERVICE) private readonly awsConfigurationService: IAWSConfigurationService)
+        @inject(SERVICE_IDENTIFIERS.IAWS_CONFIGURATION_SERVICE) private readonly awsConfigurationService: IAWSConfigurationService,
+        @inject(SERVICE_IDENTIFIERS.IIEX_SERVICE) private readonly iexService: IIEXService)
     {
 
     }
@@ -45,35 +44,10 @@ export class QuoteService implements IQuoteService
         // Unmarshall the response to get the quote array
         return (response.Items as DynamoDB.ItemList).map(quote => DynamoDB.Converter.unmarshall(quote) as Quote)
     }
-
-    public async retrieveQuoteFromProvider(symbol: string): Promise<Quote>
-    {
-        console.log(`Retrieving latest quote for ${symbol} from the IEX Provider. WARNING: Quotes are immutable, this action cannot be reversed.`);
-
-        const { apiConfig, envConfig } = await this.appConfigurationService.getAllConfiguration();
-        try
-        {
-            return await axios.get(`${apiConfig.DATA_SOURCE_URL}${symbol}/quote`, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                params: {
-                    token: envConfig.IEX_TOKEN
-                }
-            });
-        }
-        catch (err)
-        {
-            console.error(`Failed to retrieve quote for ${symbol} from IEX Provider with following error. Have you run out of free requests?`);
-            console.error(err.toString());
-            return Promise.reject(err.toString());
-        }
-    }
     
     public async updateQuoteForAsset(symbol: string): Promise<Quote>
     {
-        const quote: Quote = await this.retrieveQuoteFromProvider(symbol);
+        const quote: Quote = await this.iexService.retrieveQuoteFromProvider(symbol);
 
         console.log(`Retrieved quote for ${symbol} for the latest time. Preparing to add in DynamoDB`);
 
@@ -103,17 +77,73 @@ export class QuoteService implements IQuoteService
 
         try
         {
-            const symbols = ;
+            const symbols: string[] = await this.iexService.getAllSymbols();
 
             console.log('All symbols collected, creating batch requests. NOTE: If some requests fail the others will continue in the batch');
-
-            // Wait for each quote request to either complete or reject
-            const quotes: Quote[] = await Promise.allSettled(symbols.map(symbol => this.updateQuoteForAsset(symbol)));
-            return new Map<string, Quote>(quotes.map((quote, i) => [symbols[i], quote]));
+            return this.partialBatchUpdateQuotesForAssets(symbols);
         }
         catch (err)
         {
-            console.error('Failed to complete batch update for tthe assets with below error');
+            console.error('Failed to complete batch update for the assets with below error');
+            console.error(err.toString());
+            return Promise.reject(err.toString());
+        }
+    }
+
+    /**
+     * This method basically updates the batch of symbols passed in.
+     * May be useful to increase performance over the full batch update?
+     * @param symbols
+     */
+    public async partialBatchUpdateQuotesForAssets(symbols: string[]): Promise<Map<string, Quote>>
+    {
+        console.log(`Starting batch update for ${symbols}`);
+        try
+        {
+            // Wait for each quote request to either complete or reject
+            const quoteUpdateResults: PromiseSettledResult<Quote>[] = await Promise.allSettled(
+                symbols.map(symbol => this.updateQuoteForAsset(symbol))
+            );
+
+            // Need to filter based on the status of the updates. Some may have failed, but thats okay (sparse data and massive load)
+            const quotes: Quote[] = quoteUpdateResults.reduce((acc: Quote[], curr: PromiseSettledResult<Quote>) => {
+                if (curr.status === 'fulfilled')
+                {
+                    return [
+                        ...acc,
+                        curr.value
+                    ];
+                }
+                else
+                {
+                    console.log(`Service failed for ${curr.reason} in batch update`);
+                    return acc;
+                }
+            }, []);
+
+            if (quotes.length === quoteUpdateResults.length)
+            {
+                // Every asset successfully completed the batch update
+                console.log('Batch update completed for all symbols successfully.');
+            }
+            else if (quotes.length !== 0)
+            {
+                // Some assets successfully completed the batch update
+                console.error('Batch update partially completed, some symbols failed. Check prior logs for reasons.');
+            }
+            else
+            {
+                // No assets completed their updates
+                throw Error('Batch update failed for all symbols!! Check if the network is working or there is a scaling issue!!');
+            }
+
+            // Create the key value map using the quote's internal properties
+            // dont use he symbols array as we dont know which symbols failed anymore
+            return new Map<string, Quote>(quotes.map((quote) => [quote.symbol, quote]));
+        }
+        catch (err)
+        {
+            console.error('Failed to complete batch update for the assets with below error');
             console.error(err.toString());
             return Promise.reject(err.toString());
         }

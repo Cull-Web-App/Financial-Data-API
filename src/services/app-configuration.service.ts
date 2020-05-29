@@ -9,7 +9,8 @@ export class AppConfigurationService implements IAppConfigurationService
 {
     private configuration: Configuration = <Configuration> {};
 
-    public constructor(@inject(SERVICE_IDENTIFIERS.IAWS_CONFIGURATION_SERVICE) private readonly awsConfigurationService: IAWSConfigurationService)
+    public constructor(
+        @inject(SERVICE_IDENTIFIERS.IAWS_CONFIGURATION_SERVICE) private readonly awsConfigurationService: IAWSConfigurationService)
     {
 
     }

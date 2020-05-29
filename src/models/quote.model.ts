@@ -1,6 +1,7 @@
 
 export interface Quote
 {
+    symbol: string;
     high: number;
     low: number;
     open: number;

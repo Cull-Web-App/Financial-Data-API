@@ -41,7 +41,7 @@ export const getStockQuotesAtInterval: Handler = async (event: APIGatewayProxyEv
     }
 };
 
-/*
+/**
     This endpoint handles connect/disconnect requests from the user to a collection of symbols
     Each user can subscribe to many symbols at once
 */
@@ -93,9 +93,9 @@ export const quoteSubscriptionConnectionHandler: Handler = async (event: APIGate
     };
 };
 
-/*
-    Update the quote for every asset in the dynamodb table and publish the update message to all the ws subscribers
-    This will be triggered by a timer in Cloudwatch on a 1s basis. Will need to be updated later to handle different intervals
+/**
+    Update the quote for every asset in the DynamoDB table and publish the update message to all the ws subscribers
+    This will be triggered by a timer in CloudWatch on a 1s basis. Will need to be updated later to handle different intervals
 */
 export const updateQuotesForAllAssetsAndPublishMessages: Handler = async (event: APIGatewayProxyEvent, context: Context): Promise<APIGatewayProxyResult> => {
     const subscriptionService: ISubscriptionService = container.get(SERVICE_IDENTIFIERS.ISUBCRIPTION_SERVICE);
@@ -124,7 +124,7 @@ export const updateQuotesForAllAssetsAndPublishMessages: Handler = async (event:
     };
 };
 
-/*
+/**
     Update all the quotes for all the assets
 */
 export const updateQuotesForAllAssets: Handler = async (event: APIGatewayProxyEvent, context: Context): Promise<APIGatewayProxyResult> => {
@@ -158,7 +158,7 @@ export const updateQuotesForAllAssets: Handler = async (event: APIGatewayProxyEv
     };
 };
 
-/*
+/**
     Update the quote for a single asset
 */
 export const updateQuoteForAsset: Handler = async (event: APIGatewayProxyEvent, context: Context): Promise<APIGatewayProxyResult> => {
