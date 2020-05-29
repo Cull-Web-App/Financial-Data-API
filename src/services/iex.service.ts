@@ -10,7 +10,6 @@ export class IEXService implements IIEXService
     public constructor(
         @inject(SERVICE_IDENTIFIERS.IAPP_CONFIGURATION_SERVICE) private readonly appConfigurationService: IAppConfigurationService)
     {
-
     }
 
     public async getAllSymbolsResponseItems(): Promise<IEXSymbolResponseItem[]>

@@ -10,7 +10,6 @@ export class SubscriptionService implements ISubscriptionService
     public constructor(
         @inject(SERVICE_IDENTIFIERS.IAWS_CONFIGURATION_SERVICE) private readonly awsConfigurationService: IAWSConfigurationService)
     {
-
     }
 
     /**

@@ -11,7 +11,6 @@ export class QuoteService implements IQuoteService
         @inject(SERVICE_IDENTIFIERS.IAWS_CONFIGURATION_SERVICE) private readonly awsConfigurationService: IAWSConfigurationService,
         @inject(SERVICE_IDENTIFIERS.IIEX_SERVICE) private readonly iexService: IIEXService)
     {
-
     }
 
     public async getSingleQuoteAtInterval(symbol: string, date: Date, interval: string): Promise<Quote>
