@@ -3,6 +3,7 @@ import { Quote } from '../models';
 import { IQuoteService, IAWSConfigurationService, IIEXService } from '../interfaces';
 import { SERVICE_IDENTIFIERS, TABLES } from '../constants';
 import { DynamoDB } from 'aws-sdk';
+import { partitionArray } from '../utils';
 
 @injectable()
 export class QuoteService implements IQuoteService
@@ -102,17 +103,7 @@ export class QuoteService implements IQuoteService
             // Wait for each quote request to either complete or reject -- need to batch into sets of 10 or less
             // to handle the service throttling
             // Use slice to create the windows
-            const chunkedSymbols: string[][] = symbols.reduce((acc: string[][], symbol: string, index: number) => { 
-                const chunkIndex: number = Math.floor(index / 10)
-                
-                if(!acc[chunkIndex]) {
-                    acc[chunkIndex] = [] // start a new chunk
-                }
-                
-                acc[chunkIndex].push(symbol)
-                
-                return acc;
-            }, []);
+            const chunkedSymbols: string[][] = partitionArray(symbols, 15);
 
             // Do the chunks consecutively and then flatten
             const nestedQuoteResults: PromiseSettledResult<Quote>[][] = [];

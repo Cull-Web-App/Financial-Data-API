@@ -6,14 +6,16 @@ import {
     IAWSConfigurationService,
     IQuoteService,
     ISubscriptionService,
-    IIEXService
+    IIEXService,
+    ISymbolsService
 } from '../interfaces';
 import {
     AppConfigurationService,
     AWSConfigurationService,
     QuoteService,
     SubscriptionService,
-    IEXService
+    IEXService,
+    SymbolsService
 } from '../services';
 import { SERVICE_IDENTIFIERS } from '../constants';
 
@@ -24,6 +26,7 @@ const asynContainerModule: AsyncContainerModule = new AsyncContainerModule(async
     bind<IQuoteService>(SERVICE_IDENTIFIERS.IQUOTE_SERVICE).to(QuoteService).inSingletonScope();
     bind<ISubscriptionService>(SERVICE_IDENTIFIERS.ISUBCRIPTION_SERVICE).to(SubscriptionService).inSingletonScope();
     bind<IIEXService>(SERVICE_IDENTIFIERS.IIEX_SERVICE).to(IEXService).inSingletonScope();
+    bind<ISymbolsService>(SERVICE_IDENTIFIERS.ISYMBOLS_SERVICE).to(SymbolsService).inSingletonScope()
 });
 
 // Create the DI Container and export -- runs async for perf and possible async injection purposes

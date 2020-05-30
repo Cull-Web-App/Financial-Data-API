@@ -1,5 +1,6 @@
 export enum TABLES
 {
     CONNECTIONS = 'FinancialDataSubscriptions',
-    QUOTES = 'FinancialDataQuotes'
+    QUOTES = 'FinancialDataQuotes',
+    SYMBOLS= 'FinancialDataSymbols'
 }

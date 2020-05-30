@@ -1,7 +1,7 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult, Context, Handler } from 'aws-lambda';
 import { container } from './config';
 import { HTTP_STATUS_CODES, SERVICE_IDENTIFIERS, WS_CONNECTION_TYPES } from './constants';
-import { IQuoteService, ISubscriptionService } from './interfaces';
+import { IQuoteService, ISubscriptionService, ISymbolsService } from './interfaces';
 import { Quote, Subscription } from './models';
 
 /**
@@ -175,4 +175,31 @@ export const updateQuoteForAsset: Handler = async (event: APIGatewayProxyEvent, 
             quote: await quoteService.updateQuoteForAsset(symbol)
         })
     };
+};
+
+/**
+ * Update the symbols table with the latest symbols data from the data source
+ * Should only be used for internal jobs, not consumed by other services
+ */
+export const updateSymbolsWithLatest: Handler = async (event: APIGatewayProxyEvent, context: Context): Promise<APIGatewayProxyResult> => {
+
+    const symbolsService: ISymbolsService = container.get(SERVICE_IDENTIFIERS.ISYMBOLS_SERVICE);
+
+    try
+    {
+        await symbolsService.updateSymbolsToLatest();
+        // Create the latest quote for this symbol -- use the quote service
+        return {
+            statusCode: HTTP_STATUS_CODES.SUCCESS,
+            body: JSON.stringify({})
+        };
+    }
+    catch (err)
+    {
+        // Create the latest quote for this symbol -- use the quote service
+        return {
+            statusCode: HTTP_STATUS_CODES.SERVER_ERROR,
+            body: JSON.stringify({})
+        };
+    }
 };

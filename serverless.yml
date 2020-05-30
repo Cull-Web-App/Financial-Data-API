@@ -44,6 +44,7 @@ provider:
       Resource: 
         - !GetAtt FinancialDataQuotes.Arn
         - !GetAtt FinancialDataSubscriptions.Arn
+        - !GetAtt FinancialDataSymbols.Arn
 
 package:
   exclude:
@@ -90,6 +91,13 @@ functions:
           path: /updateQuoteForAsset
           method: post
           cors: true
+  updateSymbolsWithLatest:
+    handler: src/handler.updateSymbolsWithLatest
+    events:
+      - http:
+          path: /updateSymbolsWithLatest
+          method: post
+          # No CORS on this one. We don't want clients calling this, its for internal usage
 
 # Define CFN resources here
 resources:
@@ -127,6 +135,21 @@ resources:
         ProvisionedThroughput:
           ReadCapacityUnits: 1
           WriteCapacityUnits: 1
+        # Table for the WS subscription info
+    FinancialDataSymbols:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: FinancialDataSymbols-${self:custom.myStage}
+        AttributeDefinitions:
+          - AttributeName: symbol
+            AttributeType: S
+        KeySchema:
+          - AttributeName: symbol
+            KeyType: HASH
+        # Do we want provisioned throughput? Might want to update this to scale
+        ProvisionedThroughput:
+          ReadCapacityUnits: 5
+          WriteCapacityUnits: 5
 
   Outputs:
     FinancialDataQuotesArn:
@@ -141,6 +164,12 @@ resources:
         !GetAtt FinancialDataSubscriptions.Arn
       Export:
         Name: FinancialDataSubscriptionsArn-${self:custom.myStage}
+    FinancialDataSymbolsArn:
+      Description: The ARN for the FinancialDataSymbols DynamoDB TableName
+      Value:
+        !GetAtt FinancialDataSymbols.Arn
+      Export:
+        Name: FinancialDataSymbolsArn-${self:custom.myStage}
 
 custom:
   serverless-offline:
