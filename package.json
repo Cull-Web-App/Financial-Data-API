@@ -4,7 +4,7 @@
   "description": "Financial API to retrieve financial data from data providers",
   "main": "index.js",
   "scripts": {
-    "debug-lambda-unix": "export SLS_DEBUG=* && node --inspect=5858 /usr/local/bin/serverless offline -s dev",
+    "debug-lambda-unix": "export SLS_DEBUG=* && node --inspect=5858 /usr/local/bin/serverless offline -s prod",
     "debug-lambda-win": "SET SLS_DEBUG=* && node --inspect=5858 %USERPROFILE%\\AppData\\Roaming\\npm\\node_modules\\serverless\\bin\\serverless offline -s dev",
     "lint": "npx eslint ./**/*.ts",
     "deploy": "npm run lint && sls deploy -s prod"

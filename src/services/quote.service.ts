@@ -17,10 +17,10 @@ export class QuoteService implements IQuoteService
     {
         // Retrieve the item -- partition key is symbol, sort is the dateTime (should go to seconds)
         const response: DynamoDB.GetItemOutput = await this.awsConfigurationService.documentClient.get({
-            TableName: TABLES.QUOTES,
+            TableName: `${TABLES.QUOTES}-${process.env.NODE_ENV}`,
             Key: {
                 symbol,
-                dateTime: date
+                dateTime: date.toISOString()
             }
         }).promise();
 
@@ -31,12 +31,12 @@ export class QuoteService implements IQuoteService
     public async getQuotesAtInterval(symbol: string, startDate: Date, endDate: Date, interval: string): Promise<Array<Quote>>
     {
         const response: DynamoDB.QueryOutput = await this.awsConfigurationService.documentClient.query({
-            TableName: TABLES.QUOTES,
+            TableName: `${TABLES.QUOTES}-${process.env.NODE_ENV}`,
             KeyConditionExpression: 'symbol = :symbol AND dateTime BETWEEN :startDate AND :endDate',
             ExpressionAttributeValues: {
                 ':symbol': symbol,
-                ':startDate': startDate,
-                ':endDate': endDate
+                ':startDate': startDate.toISOString(),
+                ':endDate': endDate.toISOString()
             }
         }).promise();
 
@@ -52,15 +52,15 @@ export class QuoteService implements IQuoteService
 
         try
         {
-            const createdQuote: DynamoDB.PutItemOutput = await this.awsConfigurationService.documentClient.put({
-                TableName: TABLES.QUOTES,
+            await this.awsConfigurationService.documentClient.put({
+                TableName: `${TABLES.QUOTES}-${process.env.NODE_ENV}`,
                 Item: {
                     ...quote
                 }
             }).promise();
 
             // Ensure the structure of the quote before returning
-            return DynamoDB.Converter.unmarshall(createdQuote.Attributes as DynamoDB.AttributeMap) as Quote;
+            return quote;
         }
         catch (err)
         {
@@ -99,10 +99,34 @@ export class QuoteService implements IQuoteService
         console.log(`Starting batch update for ${symbols}`);
         try
         {
-            // Wait for each quote request to either complete or reject
-            const quoteUpdateResults: PromiseSettledResult<Quote>[] = await Promise.allSettled(
-                symbols.map(symbol => this.updateQuoteForAsset(symbol))
-            );
+            // Wait for each quote request to either complete or reject -- need to batch into sets of 10 or less
+            // to handle the service throttling
+            // Use slice to create the windows
+            const chunkedSymbols: string[][] = symbols.reduce((acc: string[][], symbol: string, index: number) => { 
+                const chunkIndex: number = Math.floor(index / 10)
+                
+                if(!acc[chunkIndex]) {
+                    acc[chunkIndex] = [] // start a new chunk
+                }
+                
+                acc[chunkIndex].push(symbol)
+                
+                return acc;
+            }, []);
+
+            // Do the chunks consecutively and then flatten
+            const nestedQuoteResults: PromiseSettledResult<Quote>[][] = [];
+            for (const chunk of chunkedSymbols)
+            {
+                const chunkResult = await Promise.allSettled(
+                    chunk.map(symbol => this.updateQuoteForAsset(symbol))
+                );
+
+                nestedQuoteResults.push(chunkResult);
+            }
+
+            // Flatten the nested results
+            const quoteUpdateResults: PromiseSettledResult<Quote>[] = nestedQuoteResults.flat();
 
             // Need to filter based on the status of the updates. Some may have failed, but thats okay (sparse data and massive load)
             const quotes: Quote[] = quoteUpdateResults.reduce((acc: Quote[], curr: PromiseSettledResult<Quote>) => {

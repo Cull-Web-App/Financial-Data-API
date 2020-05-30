@@ -98,7 +98,7 @@ resources:
     FinancialDataQuotes:
       Type: AWS::DynamoDB::Table
       Properties:
-        TableName: FinancialDataQuotes
+        TableName: FinancialDataQuotes-${self:custom.myStage}
         AttributeDefinitions:
           - AttributeName: symbol
             AttributeType: S
@@ -116,7 +116,7 @@ resources:
     FinancialDataSubscriptions:
       Type: AWS::DynamoDB::Table
       Properties:
-        TableName: FinancialDataSubscriptions
+        TableName: FinancialDataSubscriptions-${self:custom.myStage}
         AttributeDefinitions:
           - AttributeName: connectionId
             AttributeType: S
@@ -127,6 +127,20 @@ resources:
         ProvisionedThroughput:
           ReadCapacityUnits: 1
           WriteCapacityUnits: 1
+
+  Outputs:
+    FinancialDataQuotesArn:
+      Description: The ARN for the FinancialDataQuotes DynamoDB Table
+      Value:
+        !GetAtt FinancialDataQuotes.Arn
+      Export:
+        Name: FinancialDataQuotesArn-${self:custom.myStage}
+    FinancialDataSubscriptionsArn:
+      Description: The ARN for the FinancialDataSubscriptions DynamoDB Table
+      Value:
+        !GetAtt FinancialDataSubscriptions.Arn
+      Export:
+        Name: FinancialDataSubscriptionsArn-${self:custom.myStage}
 
 custom:
   serverless-offline:

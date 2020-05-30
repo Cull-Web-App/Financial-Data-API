@@ -133,27 +133,6 @@ export const updateQuotesForAllAssetsAndPublishMessages: Handler = async (event:
     Update all the quotes for all the assets
 */
 export const updateQuotesForAllAssets: Handler = async (event: APIGatewayProxyEvent, context: Context): Promise<APIGatewayProxyResult> => {
-    if (!event.body) 
-    {
-        return {
-            statusCode: HTTP_STATUS_CODES.CLIENT_ERROR,
-            body: JSON.stringify({
-                message: 'No query parameters were passed'
-            })
-        };
-    }
-
-    const { symbols } = JSON.parse(event.body);
-    if (!symbols) 
-    {
-        return {
-            statusCode: HTTP_STATUS_CODES.CLIENT_ERROR,
-            body: JSON.stringify({
-                message: 'Required request body params are missing'
-            })
-        };
-    }
-
     const quoteService: IQuoteService = container.get(SERVICE_IDENTIFIERS.IQUOTE_SERVICE);
     return {
         statusCode: HTTP_STATUS_CODES.SUCCESS,

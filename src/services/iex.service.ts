@@ -2,7 +2,7 @@ import { injectable, inject } from 'inversify';
 import { Quote, IEXSymbolResponseItem } from '../models';
 import { IAppConfigurationService, IIEXService } from '../interfaces';
 import { SERVICE_IDENTIFIERS } from '../constants';
-import axios from 'axios';
+import axios, { AxiosResponse } from 'axios';
 
 @injectable()
 export class IEXService implements IIEXService
@@ -18,7 +18,7 @@ export class IEXService implements IIEXService
 
         try
         {
-            return await axios.get(`${apiConfig.DATA_SOURCE_URL}ref-data/symbols`, {
+            const response: AxiosResponse = await axios.get(`${apiConfig.DATA_SOURCE_URL}ref-data/symbols`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json'
@@ -27,6 +27,7 @@ export class IEXService implements IIEXService
                     token: envConfig.IEX_TOKEN
                 }
             });
+            return response.data;
         }
         catch (err)
         {
@@ -38,7 +39,8 @@ export class IEXService implements IIEXService
 
     public async getAllSymbols(): Promise<string[]>
     {
-        return (await this.getAllSymbolsResponseItems()).map(item => item.symbol);
+        const symbolResponseItems: IEXSymbolResponseItem[] = await this.getAllSymbolsResponseItems();
+        return symbolResponseItems.map(item => item.symbol);
     }
 
     public async retrieveQuoteFromProvider(symbol: string): Promise<Quote>
@@ -48,7 +50,7 @@ export class IEXService implements IIEXService
 
         try
         {
-            const quoteResponse: Partial<Quote> = await axios.get(`${apiConfig.DATA_SOURCE_URL}stock/${symbol}/quote`, {
+            const quoteResponse: AxiosResponse = await axios.get(`${apiConfig.DATA_SOURCE_URL}stock/${symbol}/quote`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json'
@@ -60,7 +62,12 @@ export class IEXService implements IIEXService
 
             return {
                 symbol,
-                ...quoteResponse
+                high: quoteResponse.data.high,
+                low: quoteResponse.data.low,
+                open: quoteResponse.data.open,
+                close: quoteResponse.data.close,
+                volume: quoteResponse.data.volume,
+                dateTime: new Date(quoteResponse.data.latestTime).toISOString()
             } as Quote;
         }
         catch (err)

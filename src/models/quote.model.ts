@@ -7,5 +7,5 @@ export interface Quote
     open: number;
     close: number;
     volume: number;
-    dateTime: Date;
+    dateTime: string;
 }

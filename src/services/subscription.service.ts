@@ -18,7 +18,7 @@ export class SubscriptionService implements ISubscriptionService
     public async getAllClientConnectionInfo(): Promise<Map<string, Subscription>>
     {
         const response: DynamoDB.ScanOutput = await this.awsConfigurationService.documentClient.scan({
-            TableName: TABLES.CONNECTIONS
+            TableName: `${TABLES.CONNECTIONS}-${process.env.NODE_ENV}`
         }).promise();
 
         return new Map<string, Subscription>((response.Items as DynamoDB.ItemList).map((itemMap: DynamoDB.AttributeMap) => {
@@ -36,7 +36,7 @@ export class SubscriptionService implements ISubscriptionService
     public async getSubscribedSymbols(connectionId: string): Promise<Array<string>>
     {
         const response: DynamoDB.GetItemOutput = await this.awsConfigurationService.documentClient.get({
-            TableName: TABLES.CONNECTIONS,
+            TableName: `${TABLES.CONNECTIONS}-${process.env.NODE_ENV}`,
             Key: {
                 connectionId
             }
@@ -55,7 +55,7 @@ export class SubscriptionService implements ISubscriptionService
     public async createSubscriptions(connectionId: string, symbolsToSub: Array<string>, interval: string): Promise<Array<string>>
     {
         const createdSubscriptions: DynamoDB.UpdateItemOutput = await this.awsConfigurationService.documentClient.update({
-            TableName: TABLES.CONNECTIONS,
+            TableName: `${TABLES.CONNECTIONS}-${process.env.NODE_ENV}`,
             Key: {
                 connectionId
             },
@@ -99,7 +99,7 @@ export class SubscriptionService implements ISubscriptionService
         else
         {
             const newSubscriptions: DynamoDB.UpdateItemOutput = await this.awsConfigurationService.documentClient.update({
-                TableName: TABLES.CONNECTIONS,
+                TableName: `${TABLES.CONNECTIONS}-${process.env.NODE_ENV}`,
                 Key: {
                     connectionId
                 },
@@ -125,7 +125,7 @@ export class SubscriptionService implements ISubscriptionService
         try
         {
             await this.awsConfigurationService.documentClient.delete({
-                TableName: TABLES.CONNECTIONS,
+                TableName: `${TABLES.CONNECTIONS}-${process.env.NODE_ENV}`,
                 Key: {
                     connectionId
                 }
