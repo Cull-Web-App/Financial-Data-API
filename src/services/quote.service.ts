@@ -4,6 +4,7 @@ import { IQuoteService, IAWSConfigurationService, IIEXService } from '../interfa
 import { SERVICE_IDENTIFIERS, TABLES } from '../constants';
 import { DynamoDB } from 'aws-sdk';
 import { partitionArray } from '../utils';
+import { SymbolsService } from './symbols.service';
 
 @injectable()
 export class QuoteService implements IQuoteService
@@ -70,6 +71,43 @@ export class QuoteService implements IQuoteService
             return Promise.reject(err.toString());
         }
     }
+
+    public async updateQuotesForAssets(symbols: string[], chunkSize: number = 25): Promise<Quote[]>
+    {
+        const quotes: Quote[] = await this.iexService.retrieveQuotesFromProvider(symbols);
+
+        console.log(`Preparing to write ${quotes} to DynamoDB in batches`);
+
+        try
+        {
+            // Handle this as an actual batchWrite to improve the perf. Max write size is 25
+            const quoteChunks: Quote[][] = partitionArray(quotes, chunkSize);
+            for (const chunk of quoteChunks)
+            {
+                console.log(`Batch writing ${JSON.stringify(chunk)} to ${TABLES.QUOTES}-${process.env.NODE_ENV}`);
+                const batchWriteResult: DynamoDB.BatchWriteItemOutput = await this.awsConfigurationService.documentClient.batchWrite({
+                    RequestItems: {
+                        [`${TABLES.QUOTES}-${process.env.NODE_ENV}`]: chunk.map(quote => ({
+                            PutRequest: {
+                                Item: quote
+                            }
+                        }))
+                    }
+                }).promise();
+
+                console.log(`Batch write sucessful. Output: ${JSON.stringify(batchWriteResult)}`);
+            }
+
+            // Ensure the structure of the quote before returning
+            return quotes
+        }
+        catch (err)
+        {
+            console.error(`Failed to update quote for ${symbols} in DynamoDB with following error.`);
+            console.error(err.toString());
+            return Promise.reject(err.toString());
+        }
+    }
     
     public async batchUpdateQuotesForAssets(): Promise<Map<string, Quote>>
     {
@@ -80,7 +118,7 @@ export class QuoteService implements IQuoteService
             const symbols: string[] = await this.iexService.getAllSymbols();
 
             console.log('All symbols collected, creating batch requests. NOTE: If some requests fail the others will continue in the batch');
-            return this.partialBatchUpdateQuotesForAssets(symbols);
+            return this.partialBatchUpdateQuotesForAssets(symbols.slice(400, 700));
         }
         catch (err)
         {
@@ -100,47 +138,15 @@ export class QuoteService implements IQuoteService
         console.log(`Starting batch update for ${symbols}`);
         try
         {
-            // Wait for each quote request to either complete or reject -- need to batch into sets of 10 or less
-            // to handle the service throttling
-            // Use slice to create the windows
-            const chunkedSymbols: string[][] = partitionArray(symbols, 15);
-
-            // Do the chunks consecutively and then flatten
-            const nestedQuoteResults: PromiseSettledResult<Quote>[][] = [];
-            for (const chunk of chunkedSymbols)
-            {
-                const chunkResult = await Promise.allSettled(
-                    chunk.map(symbol => this.updateQuoteForAsset(symbol))
-                );
-
-                nestedQuoteResults.push(chunkResult);
-            }
-
             // Flatten the nested results
-            const quoteUpdateResults: PromiseSettledResult<Quote>[] = nestedQuoteResults.flat();
+            const quoteUpdateResults: Quote[] = await this.updateQuotesForAssets(symbols);
 
-            // Need to filter based on the status of the updates. Some may have failed, but thats okay (sparse data and massive load)
-            const quotes: Quote[] = quoteUpdateResults.reduce((acc: Quote[], curr: PromiseSettledResult<Quote>) => {
-                if (curr.status === 'fulfilled')
-                {
-                    return [
-                        ...acc,
-                        curr.value
-                    ];
-                }
-                else
-                {
-                    console.log(`Service failed for ${curr.reason} in batch update`);
-                    return acc;
-                }
-            }, []);
-
-            if (quotes.length === quoteUpdateResults.length)
+            if (symbols.length === quoteUpdateResults.length)
             {
                 // Every asset successfully completed the batch update
                 console.log('Batch update completed for all symbols successfully.');
             }
-            else if (quotes.length !== 0)
+            else if (quoteUpdateResults.length !== 0)
             {
                 // Some assets successfully completed the batch update
                 console.error('Batch update partially completed, some symbols failed. Check prior logs for reasons.');
@@ -153,7 +159,7 @@ export class QuoteService implements IQuoteService
 
             // Create the key value map using the quote's internal properties
             // dont use he symbols array as we dont know which symbols failed anymore
-            return new Map<string, Quote>(quotes.map((quote) => [quote.symbol, quote]));
+            return new Map<string, Quote>(quoteUpdateResults.map((quote) => [quote.symbol, quote]));
         }
         catch (err)
         {

@@ -1,4 +1,4 @@
 export interface ISymbolsService
 {
-    updateSymbolsToLatest(): Promise<void>
+    updateSymbolsToLatest(): Promise<void>;
 }

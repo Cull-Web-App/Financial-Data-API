@@ -3,6 +3,7 @@ import { Quote, IEXSymbolResponseItem } from '../models';
 import { IAppConfigurationService, IIEXService } from '../interfaces';
 import { SERVICE_IDENTIFIERS } from '../constants';
 import axios, { AxiosResponse } from 'axios';
+import { partitionArray } from '../utils';
 
 @injectable()
 export class IEXService implements IIEXService
@@ -76,5 +77,38 @@ export class IEXService implements IIEXService
             console.error(err.toString());
             return Promise.reject(err.toString());
         }
+    }
+
+    public async retrieveQuotesFromProvider(symbols: string[], chunkSize: number = 15): Promise<Quote[]>
+    {
+        const symbolsChunks: string[][] = partitionArray(symbols, chunkSize);
+        const quotes: Quote[] = [];
+        for (const chunk of symbolsChunks)
+        {
+            // Use allSettled as its alright if some data cant be retrieved successfully
+            const chunkQuotes: PromiseSettledResult<Quote>[] = await Promise.allSettled(
+                chunk.map(symbol => this.retrieveQuoteFromProvider(symbol))
+            );
+
+            quotes.push(...chunkQuotes.reduce((acc: Quote[], curr: PromiseSettledResult<Quote>) => {
+                if (curr.status === 'fulfilled')
+                {
+                    // Add the value if the service was successful
+                    return [
+                        ...acc,
+                        curr.value
+                    ];
+                }
+                else
+                {
+                    console.log(`Service failed for ${curr.reason} in retrieviing quotes from provider service`);
+                    return acc;
+                }
+            }, []));
+        }
+
+        console.log(`Retrieved quote for ${symbols} for the latest time`);
+
+        return quotes;
     }
 }
