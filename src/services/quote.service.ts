@@ -4,7 +4,6 @@ import { IQuoteService, IAWSConfigurationService, IIEXService } from '../interfa
 import { SERVICE_IDENTIFIERS, TABLES } from '../constants';
 import { DynamoDB } from 'aws-sdk';
 import { partitionArray } from '../utils';
-import { SymbolsService } from './symbols.service';
 
 @injectable()
 export class QuoteService implements IQuoteService
