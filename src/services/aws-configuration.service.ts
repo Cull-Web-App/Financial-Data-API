@@ -4,7 +4,6 @@ import getDecorators from 'inversify-inject-decorators';
 import { SERVICE_IDENTIFIERS } from '../constants';
 import { IAWSConfigurationService, IAppConfigurationService } from '../interfaces';
 import { container } from '../config';
-import { Configuration } from '../models';
 
 // Use lazy injection to avoid the circular dependency
 const { lazyInject } = getDecorators(container, true);
@@ -29,9 +28,9 @@ export class AWSConfigurationService implements IAWSConfigurationService
     {
         if (!this.apigwManagementApi)
         {
-            const configuration: Configuration = await this.appConfigurationService.getConfiguration();
+            const { apiConfig } = await this.appConfigurationService.getAllConfiguration();
             this.apigwManagementApi = new ApiGatewayManagementApi({
-                endpoint: configuration.FINANCIAL_DATA_API
+                endpoint: apiConfig.FINANCIAL_DATA_API
             });
         }
         return this.apigwManagementApi;

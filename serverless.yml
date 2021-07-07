@@ -26,7 +26,7 @@ provider:
   websocketApiRouteSelectionExpression: $request.body.action
   environment:
     SLS_DEBUG: true
-    NODE_ENV: "dev"
+    NODE_ENV: ${self:custom.myStage}
   iamRoleStatements:
     - Effect: Allow
       Action:
@@ -42,8 +42,9 @@ provider:
         - dynamodb:UpdateItem
         - dynamodb:DeleteItem
       Resource: 
-        - "arn:aws:dynamodb:us-east-2:659125015803:table/MockFinancialData"
-        - "arn:aws:dynamodb:us-east-2:659125015803:table/FinancialDataSubscriptions"
+        - !GetAtt FinancialDataQuotes.Arn
+        - !GetAtt FinancialDataSubscriptions.Arn
+        - !GetAtt FinancialDataSymbols.Arn
 
 package:
   exclude:
@@ -60,221 +61,117 @@ functions:
           path: /getStockQuotesAtInterval
           method: get
           cors: true
-  updateQuotesForAllAssetsAndPublishMessages:
+  updateQuotesForAllAssetsAndPublish:
     handler: src/handler.updateQuotesForAllAssetsAndPublishMessages
     events:
       - http:
           path: /updateQuotesForAllAssetsAndPublishMessages
           method: get
           cors: true
-#          integration: lambda
-#          authorizer:
-#            name: Cull-Users
-#            arn: arn:aws:cognito-idp:us-east-2:659125015803:userpool/us-east-2_RX3ccbAc4H
+  quoteSubscriptionConnectionHandler:
+    handler: src/handler.quoteSubscriptionConnectionHandler
+    events:
+      - websocket:
+          route: $connect
+      - websocket:
+          route: $disconnect
+      - websocket:
+          route: $default
+  updateQuotesForAllAssets:
+    handler: src/handler.updateQuotesForAllAssets
+    events:
+      - http:
+          path: /updateQuotesForAllAssets
+          method: post
+          cors: true
+  updateQuoteForAsset:
+    handler: src/handler.updateQuoteForAsset
+    events:
+      - http:
+          path: /updateQuoteForAsset
+          method: post
+          cors: true
+  updateSymbolsWithLatest:
+    handler: src/handler.updateSymbolsWithLatest
+    events:
+      - http:
+          path: /updateSymbolsWithLatest
+          method: post
+          # No CORS on this one. We don't want clients calling this, its for internal usage
 
-# Resources:
-#   # Build pipeline resources
-#   CodePipelineArtifactStoreBucket:
-#     Type: 'AWS::S3::Bucket'
-#     Properties:
-#       VersioningConfiguration:
-#         Status: Enabled
+# Define CFN resources here
+resources:
+  Resources:
+    # Table for the quote info
+    FinancialDataQuotes:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: FinancialDataQuotes-${self:custom.myStage}
+        AttributeDefinitions:
+          - AttributeName: symbol
+            AttributeType: S
+          - AttributeName: dateTime
+            AttributeType: S
+        KeySchema:
+          - AttributeName: symbol
+            KeyType: HASH
+          - AttributeName: dateTime
+            KeyType: RANGE
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+    # Table for the WS subscription info
+    FinancialDataSubscriptions:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: FinancialDataSubscriptions-${self:custom.myStage}
+        AttributeDefinitions:
+          - AttributeName: connectionId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: connectionId
+            KeyType: HASH
+        # Do we want provisioned throughput? Might want to update this to scale
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        # Table for the WS subscription info
+    FinancialDataSymbols:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: FinancialDataSymbols-${self:custom.myStage}
+        AttributeDefinitions:
+          - AttributeName: symbol
+            AttributeType: S
+        KeySchema:
+          - AttributeName: symbol
+            KeyType: HASH
+        # Do we want provisioned throughput? Might want to update this to scale
+        ProvisionedThroughput:
+          ReadCapacityUnits: 5
+          WriteCapacityUnits: 5
 
-#   CodeBuildProject:
-#     Type: 'AWS::CodeBuild::Project'
-#     Properties:
-#       ServiceRole: !GetAtt CodeBuildRole.Arn
-#       Artifacts:
-#         # The downloaded source code for the build will come from CodePipeline
-#         Type: CODEPIPELINE
-#       Environment:
-#         # Linux container with node installed
-#         ComputeType: BUILD_GENERAL1_SMALL
-#         Type: LINUX_CONTAINER
-#         Image: "aws/codebuild/standard:2.0"
-#       # This source record indicates that the code is coming from CodePipeline -- No buildspec specified so buildspec.yml will be used
-#       Source:
-#         Type: CODEPIPELINE
-
-#   AppPipeline:
-#     Type: 'AWS::CodePipeline::Pipeline'
-#     Properties:
-#       Name: Cull-Web-UI-Pipeline
-#       RoleArn: !GetAtt CodePipelineServiceRole.Arn
-#       ArtifactStore:
-#         Location: !Ref CodePipelineArtifactStoreBucket
-#         Type: S3
-#       Stages:
-#         - Name: Source
-#           Actions:
-#             - Name: SourceAction
-#               ActionTypeId:
-#                 Category: Source
-#                 Owner: ThirdParty
-#                 Version: 1
-#                 Provider: GitHub
-#               OutputArtifacts:
-#                 - Name: SourceOutput
-#               Configuration:
-#                 Owner: !Ref GitHubOwner
-#                 Repo: !Ref RepositoryName
-#                 Branch: !Ref BranchName
-#                 OAuthToken: !Ref GitHubOAuthToken
-#                 PollForSourceChanges: false
-#         - Name: BuildAndTest
-#           Actions:
-#             - Name: BuildAndTest
-#               InputArtifacts:
-#                 - Name: SourceOutput
-#               ActionTypeId:
-#                 Category: Build
-#                 Owner: AWS
-#                 Version: 1
-#                 Provider: CodeBuild
-#               OutputArtifacts:
-#                 - Name: BuildOutput
-#               Configuration:
-#                 ProjectName: !Ref CodeBuildProject
-#         - Name: Deploy
-#           Actions:
-#             - Name: Deploy
-#               InputArtifacts:
-#                 - Name: BuildOutput
-#               ActionTypeId:
-#                 Category: Deploy
-#                 Owner: AWS
-#                 Version: 1
-#                 Provider: S3
-#               Configuration:
-                
-
-#   # This webhook allows the github changes to be pushed to CodePipeline rather than polled
-#   AppPipelineWebhook:
-#     Type: 'AWS::CodePipeline::Webhook'
-#     Properties:
-#       Authentication: GITHUB_HMAC
-#       AuthenticationConfiguration:
-#         SecretToken: !Ref GitHubSecret
-#       Filters:
-#         - JsonPath: $.ref
-#           MatchEquals: 'refs/heads/{Branch}'
-#       TargetPipeline: !Ref AppPipeline
-#       TargetAction: SourceAction
-#       Name: Cull-Financial-Data
-#       TargetPipelineVersion: !GetAtt AppPipeline.Version
-#       RegisterWithThirdParty: true
-
-#   # IAM Roles for this stack
-#   CodePipelineServiceRole:
-#     Type: 'AWS::IAM::Role'
-#     Properties:
-#       AssumeRolePolicyDocument:
-#         Statement:
-#           - Effect: Allow
-#             Principal:
-#               Service:
-#                 - codepipeline.amazonaws.com
-#             Action: 'sts:AssumeRole'
-#       Path: /
-#       Policies:
-#         - PolicyName: AWS-CodePipeline-Service
-#           PolicyDocument:
-#             Statement:
-#               - Effect: Allow
-#                 Action:
-#                   - 'codedeploy:CreateDeployment'
-#                   - 'codedeploy:GetApplicationRevision'
-#                   - 'codedeploy:GetDeployment'
-#                   - 'codedeploy:GetDeploymentConfig'
-#                   - 'codedeploy:RegisterApplicationRevision'
-#                 Resource: '*'
-#               - Effect: Allow
-#                 Action:
-#                   - 'codebuild:BatchGetBuilds'
-#                   - 'codebuild:StartBuild'
-#                 Resource: '*'
-#               - Effect: Allow
-#                 Action:
-#                   - "s3:*"
-#                 Resource:
-#                   - !GetAtt CodePipelineArtifactStoreBucket.Arn
-#                   - !Join ['', [!GetAtt CodePipelineArtifactStoreBucket.Arn, "/*"]]
-  
-#   # IAM role that allows CodeBuild to interact with S3, CloudWatch, and CloudFront
-#   CodeBuildRole:
-#     Type: AWS::IAM::Role
-#     Properties:
-#       AssumeRolePolicyDocument:
-#         Version: "2012-10-17"
-#         Statement:
-#           - 
-#             Effect: Allow
-#             Principal:
-#               Service:
-#                 - "codebuild.amazonaws.com"
-#             Action:
-#               - "sts:AssumeRole"
-#       Path: /service-role/
-#       Policies:
-#         - PolicyName: root
-#           PolicyDocument:
-#             Version: "2012-10-17"
-#             Statement: 
-#               - 
-#                 Effect: Allow
-#                 Action:
-#                   - "s3:GetObject"
-#                   - "s3:GetObjectVersion"
-#                   - "s3:GetBucketVersioning"
-#                   - "s3:PutObject"
-#                 Resource: 
-#                   - !GetAtt CodePipelineArtifactStoreBucket.Arn
-#                   - !Join ['', [!GetAtt CodePipelineArtifactStoreBucket.Arn, "/*"]]
-#               -
-#                 Effect: Allow
-#                 Action:
-#                   - "logs:CreateLogGroup"
-#                   - "logs:CreateLogStream"
-#                   - "logs:PutLogEvents"
-#                   - "cloudfront:CreateInvalidation"
-#                   - "cloudformation:*"
-#                 Resource:
-#                   - "*"
-
-# # List of parameters referenced in the template
-# Parameters:
-
-#   BranchName:
-#     Description: Build branch
-#     Type: String
-#     Default: master
-
-#   RepositoryName:
-#     Description: GitHub repository name
-#     Type: String
-#     Default: Cull-Web-UI
-
-#   GitHubOwner:
-#     Type: String
-#     Default: Cull-Web-App
-
-#   # The GitHub Secret and OAuth are SecretsManager secrets that are dynamically retrieved. They aren't in the template for obvious reasons
-#   GitHubSecret:
-#     Type: String
-#     NoEcho: true
-#     Default: '{{resolve:secretsmanager:GitHub:SecretString:Secret}}'
-  
-#   # This parameter needs to be passed in everytime the stack is ran -- will not be remembered
-#   GitHubOAuthToken:
-#     Type: String
-#     NoEcho: true
-#     Default: '{{resolve:secretsmanager:GitHub:SecretString:OAuthToken}}'
-
-#   ApplicationName:
-#     Description: CodeDeploy application name
-#     Type: String
-#     Default: Cull-Web-UI
+  Outputs:
+    FinancialDataQuotesArn:
+      Description: The ARN for the FinancialDataQuotes DynamoDB Table
+      Value:
+        !GetAtt FinancialDataQuotes.Arn
+      Export:
+        Name: FinancialDataQuotesArn-${self:custom.myStage}
+    FinancialDataSubscriptionsArn:
+      Description: The ARN for the FinancialDataSubscriptions DynamoDB Table
+      Value:
+        !GetAtt FinancialDataSubscriptions.Arn
+      Export:
+        Name: FinancialDataSubscriptionsArn-${self:custom.myStage}
+    FinancialDataSymbolsArn:
+      Description: The ARN for the FinancialDataSymbols DynamoDB TableName
+      Value:
+        !GetAtt FinancialDataSymbols.Arn
+      Export:
+        Name: FinancialDataSymbolsArn-${self:custom.myStage}
 
 custom:
   serverless-offline:
-    port: 4000
+    port: 8000
+  myStage: ${opt:stage, self:provider.stage}

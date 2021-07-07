@@ -1,9 +1,12 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult, Context, Handler } from 'aws-lambda';
 import { container } from './config';
 import { HTTP_STATUS_CODES, SERVICE_IDENTIFIERS, WS_CONNECTION_TYPES } from './constants';
-import { IQuoteService, ISubscriptionService } from './interfaces';
+import { IQuoteService, ISubscriptionService, ISymbolsService } from './interfaces';
 import { Quote, Subscription } from './models';
 
+/**
+ * Get the stock quote for a specific time interval. For now, just the default interval is allowed
+ */
 export const getStockQuotesAtInterval: Handler = async (event: APIGatewayProxyEvent, context: Context): Promise<APIGatewayProxyResult> => {
     // If nothing is passed -- client error
     if (!event.queryStringParameters)
@@ -23,10 +26,12 @@ export const getStockQuotesAtInterval: Handler = async (event: APIGatewayProxyEv
         // Convert the start and end dates into date objects -- requires that they are passed correctly in string format
         const sDate = new Date(startDate);
         const eDate = new Date(endDate);
+        const quoteService: IQuoteService = container.get(SERVICE_IDENTIFIERS.IQUOTE_SERVICE);
 
         return {
             statusCode: HTTP_STATUS_CODES.SUCCESS,
             body: JSON.stringify({
+                quotes: await quoteService.getQuotesAtInterval(symbol, sDate, eDate, interval)
             })
         };
     }
@@ -41,7 +46,7 @@ export const getStockQuotesAtInterval: Handler = async (event: APIGatewayProxyEv
     }
 };
 
-/*
+/**
     This endpoint handles connect/disconnect requests from the user to a collection of symbols
     Each user can subscribe to many symbols at once
 */
@@ -93,9 +98,9 @@ export const quoteSubscriptionConnectionHandler: Handler = async (event: APIGate
     };
 };
 
-/*
-    Update the quote for every asset in the dynamodb table and publish the update message to all the ws subscribers
-    This will be triggered by a timer in Cloudwatch on a 1s basis. Will need to be updated later to handle different intervals
+/**
+    Update the quote for every asset in the DynamoDB table and publish the update message to all the ws subscribers
+    This will be triggered by a timer in CloudWatch on a 1s basis. Will need to be updated later to handle different intervals
 */
 export const updateQuotesForAllAssetsAndPublishMessages: Handler = async (event: APIGatewayProxyEvent, context: Context): Promise<APIGatewayProxyResult> => {
     const subscriptionService: ISubscriptionService = container.get(SERVICE_IDENTIFIERS.ISUBCRIPTION_SERVICE);
@@ -122,34 +127,12 @@ export const updateQuotesForAllAssetsAndPublishMessages: Handler = async (event:
         statusCode: HTTP_STATUS_CODES.SUCCESS,
         body: JSON.stringify('Successfully updated all clients')
     };
-
 };
 
-/*
+/**
     Update all the quotes for all the assets
 */
 export const updateQuotesForAllAssets: Handler = async (event: APIGatewayProxyEvent, context: Context): Promise<APIGatewayProxyResult> => {
-    if (!event.body) 
-    {
-        return {
-            statusCode: HTTP_STATUS_CODES.CLIENT_ERROR,
-            body: JSON.stringify({
-                message: 'No query parameters were passed'
-            })
-        };
-    }
-
-    const { symbols } = JSON.parse(event.body);
-    if (!symbols) 
-    {
-        return {
-            statusCode: HTTP_STATUS_CODES.CLIENT_ERROR,
-            body: JSON.stringify({
-                message: 'Required request body params are missing'
-            })
-        };
-    }
-
     const quoteService: IQuoteService = container.get(SERVICE_IDENTIFIERS.IQUOTE_SERVICE);
     return {
         statusCode: HTTP_STATUS_CODES.SUCCESS,
@@ -159,7 +142,7 @@ export const updateQuotesForAllAssets: Handler = async (event: APIGatewayProxyEv
     };
 };
 
-/*
+/**
     Update the quote for a single asset
 */
 export const updateQuoteForAsset: Handler = async (event: APIGatewayProxyEvent, context: Context): Promise<APIGatewayProxyResult> => {
@@ -192,4 +175,31 @@ export const updateQuoteForAsset: Handler = async (event: APIGatewayProxyEvent, 
             quote: await quoteService.updateQuoteForAsset(symbol)
         })
     };
+};
+
+/**
+ * Update the symbols table with the latest symbols data from the data source
+ * Should only be used for internal jobs, not consumed by other services
+ */
+export const updateSymbolsWithLatest: Handler = async (event: APIGatewayProxyEvent, context: Context): Promise<APIGatewayProxyResult> => {
+
+    const symbolsService: ISymbolsService = container.get(SERVICE_IDENTIFIERS.ISYMBOLS_SERVICE);
+
+    try
+    {
+        await symbolsService.updateSymbolsToLatest();
+        // Create the latest quote for this symbol -- use the quote service
+        return {
+            statusCode: HTTP_STATUS_CODES.SUCCESS,
+            body: JSON.stringify({})
+        };
+    }
+    catch (err)
+    {
+        // Create the latest quote for this symbol -- use the quote service
+        return {
+            statusCode: HTTP_STATUS_CODES.SERVER_ERROR,
+            body: JSON.stringify({})
+        };
+    }
 };

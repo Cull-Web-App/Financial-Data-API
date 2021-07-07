@@ -1,0 +1,114 @@
+import { injectable, inject } from 'inversify';
+import { Quote, IEXSymbolResponseItem } from '../models';
+import { IAppConfigurationService, IIEXService } from '../interfaces';
+import { SERVICE_IDENTIFIERS } from '../constants';
+import axios, { AxiosResponse } from 'axios';
+import { partitionArray } from '../utils';
+
+@injectable()
+export class IEXService implements IIEXService
+{
+    public constructor(
+        @inject(SERVICE_IDENTIFIERS.IAPP_CONFIGURATION_SERVICE) private readonly appConfigurationService: IAppConfigurationService)
+    {
+    }
+
+    public async getAllSymbolsResponseItems(): Promise<IEXSymbolResponseItem[]>
+    {
+        const { apiConfig, envConfig } = await this.appConfigurationService.getAllConfiguration();
+
+        try
+        {
+            const response: AxiosResponse = await axios.get(`${apiConfig.DATA_SOURCE_URL}ref-data/symbols`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                params: {
+                    token: envConfig.IEX_TOKEN
+                }
+            });
+            return response.data;
+        }
+        catch (err)
+        {
+            console.error('Failed to load symbols');
+            console.error(err.toString());
+            return Promise.reject(err.toString());
+        }
+    }
+
+    public async getAllSymbols(): Promise<string[]>
+    {
+        const symbolResponseItems: IEXSymbolResponseItem[] = await this.getAllSymbolsResponseItems();
+        return symbolResponseItems.map(item => item.symbol);
+    }
+
+    public async retrieveQuoteFromProvider(symbol: string): Promise<Quote>
+    {
+        const { apiConfig, envConfig } = await this.appConfigurationService.getAllConfiguration();
+        console.log(`Retrieving latest quote for ${symbol} from the IEX Provider. WARNING: Quotes are immutable, this action cannot be reversed.`);
+
+        try
+        {
+            const quoteResponse: AxiosResponse = await axios.get(`${apiConfig.DATA_SOURCE_URL}stock/${symbol}/quote`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                params: {
+                    token: envConfig.IEX_TOKEN
+                }
+            });
+
+            return {
+                symbol,
+                high: quoteResponse.data.high,
+                low: quoteResponse.data.low,
+                open: quoteResponse.data.open,
+                close: quoteResponse.data.close,
+                volume: quoteResponse.data.volume,
+                dateTime: new Date(quoteResponse.data.latestTime).toISOString()
+            } as Quote;
+        }
+        catch (err)
+        {
+            console.error(`Failed to retrieve quote for ${symbol} from IEX Provider with following error. Have you run out of free requests?`);
+            console.error(err.toString());
+            return Promise.reject(err.toString());
+        }
+    }
+
+    public async retrieveQuotesFromProvider(symbols: string[], chunkSize: number = 15): Promise<Quote[]>
+    {
+        const symbolsChunks: string[][] = partitionArray(symbols, chunkSize);
+        const quotes: Quote[] = [];
+        for (const chunk of symbolsChunks)
+        {
+            // Use allSettled as its alright if some data cant be retrieved successfully
+            const chunkQuotes: PromiseSettledResult<Quote>[] = await Promise.allSettled(
+                chunk.map(symbol => this.retrieveQuoteFromProvider(symbol))
+            );
+
+            quotes.push(...chunkQuotes.reduce((acc: Quote[], curr: PromiseSettledResult<Quote>) => {
+                if (curr.status === 'fulfilled')
+                {
+                    // Add the value if the service was successful
+                    return [
+                        ...acc,
+                        curr.value
+                    ];
+                }
+                else
+                {
+                    console.log(`Service failed for ${curr.reason} in retrieviing quotes from provider service`);
+                    return acc;
+                }
+            }, []));
+        }
+
+        console.log(`Retrieved quote for ${symbols} for the latest time`);
+
+        return quotes;
+    }
+}
